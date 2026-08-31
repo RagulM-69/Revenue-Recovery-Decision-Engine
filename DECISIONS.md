@@ -1,188 +1,152 @@
-# DECISIONS.md — Architectural Decision Log
+﻿# DECISIONS.md — Architectural Decision Log
 
 **Project:** Revenue Recovery Decision Engine
 **Last Updated:** 2026-08-31
 
 This document records every architectural decision that has material impact on the system design.
 
-Decisions that have not yet been approved are marked **OPEN**.
-Decisions that have been approved and implemented are marked **DECIDED**.
-
----
-
-## Decision Log
-
----
-
-### D-001 — Database
-
-**Decision:** What database will store synthetic data, decisions, outcomes, and the audit log?
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **SQLite** | Zero infrastructure, simple setup, file-based, easy to ship with the project | Single-file, not suitable for multi-process concurrent writes, not cloud-hosted |
-| **PostgreSQL (local)** | Full relational DB, concurrent writes, robust | Requires local Postgres install, harder to deploy |
-| **Supabase PostgreSQL** | Cloud-hosted Postgres, free tier, web dashboard, REST + realtime APIs, integrates with Vercel | External dependency, requires account, latency |
-| **DuckDB** | Columnar, excellent for analytical queries (evaluation metrics), file-based, no server needed | Less mature for transactional writes, limited ecosystem |
-
-**Recommendation:** Start with **SQLite** for local development (zero friction, portable). If a web UI is needed for the submission, consider migrating to **Supabase** later.
-
-**Rationale:** The workload is predominantly analytical (batch evaluation), not highly concurrent transactional. SQLite is sufficient for a simulation. Supabase would be needed only if the submission requires a live web interface with a shared backend.
-
-**Status: OPEN — awaiting user decision.**
-
----
-
-### D-002 — Backend Framework
-
-**Decision:** What backend framework (if any) will serve the API or orchestrate the pipeline?
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **No server / scripts only** | Simplest — pipeline runs as CLI scripts, no HTTP layer needed | Cannot serve a web UI or expose an API |
-| **FastAPI (Python)** | Native Python, async, auto-generates OpenAPI docs, lightweight | Requires Python runtime on deployment target |
-| **Flask (Python)** | Minimal, widely known | Less modern than FastAPI, no async out of the box |
-| **Next.js API Routes** | If using Next.js for frontend, API routes unify frontend/backend | Running Python ML code from Next.js is awkward (subprocess or separate service) |
-
-**Recommendation:** Depends on whether a web UI is part of the submission. If yes: **FastAPI** (Python) for the backend + separate frontend. If no: no server needed — CLI scripts only.
-
-**Rationale:** The core pipeline is Python (data generation, ML, policy). A Python backend avoids language boundary friction. FastAPI is the modern standard for Python APIs.
-
-**Status: OPEN — awaiting user decision (depends on D-004: Frontend).**
-
----
-
-### D-003 — ML Model Family
-
-**Decision:** Which supervised learning model will produce `P(recovery)`?
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **Logistic Regression** | Highly interpretable, natively calibrated, fast to train, good baseline | May underfit if failure patterns are non-linear |
-| **Random Forest** | Handles non-linear interactions, robust to outliers, feature importances built-in | Requires Platt scaling or isotonic regression for calibration |
-| **XGBoost** | Typically best tabular performance, handles missing values | More hyperparameters, calibration required |
-| **LightGBM** | Faster than XGBoost on large datasets, similar performance | Same calibration caveats |
-
-**Recommendation:** Train **all four** as a comparison. Use **Logistic Regression** as the official baseline. Select the best-calibrated model (Brier score) for production use in the demo. This approach strengthens the evaluation narrative.
-
-**Rationale:** Training multiple models is low-cost on synthetic data. Comparing calibration across model families is a differentiator that demonstrates ML rigor.
-
-**Status: OPEN — awaiting user decision.**
-
----
-
-### D-004 — Frontend
-
-**Decision:** Will the submission include a web-based user interface?
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **No frontend** | Simplest — results shown via CLI output / Jupyter notebook | Weaker visual impression for judges |
-| **Static HTML + vanilla JS** | No build toolchain, easily deployed to Vercel | Limited interactivity, more CSS effort |
-| **Next.js** | React-based, full SSR/SSG, Vercel-native, rich ecosystem | Requires Node.js build, may be overkill |
-| **Streamlit (Python)** | Native Python, rapid prototype dashboards, minimal frontend code | Not easily deployable to Vercel without workarounds, not production-grade |
-
-**Recommendation:** If a UI is desired for submission: **Next.js** (Vercel-native, aligns with deployment constraint). If time is limited: **Streamlit** for a quick internal demo.
-
-**Rationale:** Vercel is the stated deployment target. Next.js is the native framework for Vercel and requires no deployment configuration beyond `vercel deploy`.
-
-**Status: OPEN — awaiting user decision.**
-
----
-
-### D-005 — LLM Integration
-
-**Decision:** Should an LLM be included, and if so, which one?
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **No LLM** | Simplest, no API keys required, lower cost, cleaner demo of ML-only approach | Less visually impressive for judges who expect AI features |
-| **Optional LLM explanation layer** | Adds natural-language audit summaries, escalation notes, differentiates the UI | Adds external API dependency, prompt engineering required, cost |
-| **Google Gemini API** | Free tier available, strong instruction-following, no AWS dependency | External dependency |
-| **OpenAI API** | Widely known, strong ecosystem | Cost, external dependency |
-| **Local LLM (Ollama)** | No API keys, offline, free | Not deployable to Vercel, resource intensive |
-
-**Recommendation:** Include an **optional** Gemini API explanation layer if the submission has a web UI. Make it clearly optional — the system must function correctly without it. Do NOT add the LLM SDK until this decision is confirmed.
-
-**Rationale:** Per the project principle "LLM may explain, code decides" — if an LLM is added, it must be clearly decorative/explanatory. The Gemini API is a natural fit given the Google DeepMind context and free tier availability.
-
-**Status: OPEN — awaiting user decision.**
-
----
-
-### D-006 — Deployment
-
-**Decision:** How will the project be deployed for the submission?
-
-**Constraints already confirmed:**
-- ✅ Target: **Vercel**
-- ❌ AWS: explicitly excluded
-
-**Options:**
-
-| Option | Pros | Cons |
-|---|---|---|
-| **Vercel (frontend only)** | Simplest — static export or Next.js frontend, all computation happens locally | ML pipeline must be pre-run; no live inference |
-| **Vercel + Vercel Serverless Functions** | Can run lightweight Python logic as serverless functions | Python functions on Vercel have cold start / size limits; ML model serialization needed |
-| **Vercel + Supabase** | Vercel frontend + cloud database with pre-computed results | Two external services; results must be pre-computed and stored |
-| **CLI-only (no deployment)** | Runs entirely locally, maximum simplicity | No shareable web link for judges |
-
-**Recommendation:** For the submission: **Vercel + Supabase** if a live web demo is desired (pre-computed results stored in Supabase, served to a Next.js frontend). If not: **CLI-only** with a notebook or HTML export as the demo artifact.
-
-**Rationale:** Running the ML pipeline live in Vercel Serverless Functions is technically challenging (model size, Python environment, cold start). Pre-computing results and serving them from a database is more reliable.
-
-**Status: OPEN — awaiting user decision (depends on D-004: Frontend).**
-
----
-
-### D-007 — Programming Language
-
-**Decision:** What programming language will be used for the core pipeline?
-
-**Options:**
-
-| Option | Notes |
-|---|---|
-| **Python** | Natural choice for ML (scikit-learn, XGBoost, pandas, numpy). All ML libraries are Python-native. |
-| **TypeScript / Node.js** | Strong if frontend is Next.js, but ML ecosystem is poor |
-| **Mixed (Python backend + TypeScript frontend)** | Cleanest separation if a web UI is required |
-
-**Recommendation:** **Python** for the core pipeline (data generation, ML, policy engine, evaluation). **TypeScript** only if a Next.js frontend is chosen.
-
-**Rationale:** The ML stack is Python-native. The policy engine is pure logic and can be ported to any language later, but Python keeps the initial implementation simple.
-
-**Status: OPEN — awaiting user decision (implicitly decided by D-002 and D-004, but recorded here for completeness).**
+- **DECIDED** — approved and locked; do not change without explicit instruction.
+- **OPEN** — requires user approval before implementation proceeds.
 
 ---
 
 ## Decided
 
-*(None yet — all decisions await user approval.)*
+---
+
+### D-001 — Database ✅ DECIDED
+
+**Decision:** What database will store synthetic data, decisions, outcomes, and the audit log?
+
+**Chosen:** Supabase PostgreSQL
+
+**Rationale:** Cloud-hosted Postgres with a free tier, REST + realtime APIs, and native Vercel integration. Required for a live web dashboard. Pre-computed ML pipeline results are written to Supabase; Next.js reads them directly.
+
+**Status: DECIDED — Supabase PostgreSQL.**
 
 ---
 
-## Decision Priority Order
+### D-002 — Backend Framework ✅ DECIDED
 
-The following decisions block each other. Resolving them in this order is recommended:
+**Decision:** What backend framework (if any) will serve the API or orchestrate the pipeline?
 
-1. **D-004 (Frontend)** — determines if a web UI is needed at all
-2. **D-001 (Database)** — depends on whether a cloud-accessible DB is needed (Supabase only needed for a live web demo)
-3. **D-006 (Deployment)** — depends on D-004
-4. **D-002 (Backend)** — depends on D-004 and D-006
-5. **D-005 (LLM)** — depends on D-004 (only add LLM if there's a UI to show it)
-6. **D-003 (ML Model)** — independent; can be decided anytime
-7. **D-007 (Language)** — largely determined by D-003 and D-002
+**Chosen:** No separate backend server.
+
+The architecture is:
+- Python ML pipeline runs locally (or CI) and writes all results to Supabase.
+- Next.js reads pre-computed results directly from Supabase.
+- Next.js API routes handle only lightweight read-through queries to Supabase (no Python execution on Vercel).
+
+**Explicitly rejected:** Running the Python ML pipeline inside Vercel Serverless Functions. Do not implement this.
+
+**Status: DECIDED — no standalone backend server; Python writes to Supabase, Next.js reads from Supabase.**
 
 ---
 
-*Decisions will be updated as they are resolved.*
+### D-003 — ML Model Family ✅ DECIDED
+
+**Decision:** Which supervised learning model(s) will produce P(recovery)?
+
+**Chosen:** Logistic Regression (baseline) and XGBoost (comparison).
+
+**Evaluation method:** Evidence-based selection using ROC-AUC and Brier score / calibration. The better-calibrated model is used for the production pipeline.
+
+**Explicitly dropped:** Random Forest and LightGBM. Do not add them without explicit approval.
+
+**Status: DECIDED — Logistic Regression baseline + XGBoost comparison; calibration-based selection.**
+
+---
+
+### D-004 — Frontend ✅ DECIDED
+
+**Decision:** Will the submission include a web-based user interface, and what technology?
+
+**Chosen:** Next.js + TypeScript + Tailwind CSS, deployed to Vercel.
+
+**Status: DECIDED — Next.js + TypeScript + Tailwind CSS on Vercel.**
+
+---
+
+### D-005 — LLM Integration ✅ DECIDED
+
+**Decision:** Should an LLM be included, and if so, which one?
+
+**Chosen:** Optional Gemini API, explanation layer only. Not yet implemented.
+
+**Constraints (locked):**
+- The LLM must NEVER determine RETRY / ESCALATE / DO_NOTHING.
+- The LLM must NEVER modify P(recovery).
+- The LLM must NEVER override policy guardrails.
+- The core application must remain fully functional if Gemini is unavailable.
+- Gemini calls must be wrapped in failure-tolerant try/except; fall back to structured text template.
+- Do NOT implement Gemini integration until explicitly instructed.
+
+**Core principle:** LLM may explain. Code decides.
+
+**Status: DECIDED — optional Gemini API, explanation-only, not yet implemented.**
+
+---
+
+### D-006 — Deployment ✅ DECIDED
+
+**Decision:** How will the project be deployed for the submission?
+
+**Chosen:** Vercel (Next.js frontend) + Supabase (PostgreSQL database).
+
+**Constraints (locked):**
+- AWS is explicitly excluded. Do not introduce any AWS service or AWS SDK.
+- Python ML pipeline is NOT deployed to Vercel. It runs locally or in a separate environment.
+- Only the Next.js application is deployed to Vercel.
+
+**Status: DECIDED — Vercel (Next.js) + Supabase (data). AWS excluded.**
+
+---
+
+### D-007 — Programming Language ✅ DECIDED
+
+**Decision:** What programming language is used for each layer?
+
+**Chosen:**
+- **Python** — synthetic data generation, feature engineering, ML training, ML scoring, policy engine, recovery simulator, audit logging, evaluation metrics.
+- **TypeScript** — Next.js frontend and any Next.js API routes.
+
+**Status: DECIDED — Python (ML pipeline) + TypeScript (frontend).**
+
+---
+
+### D-008 — Python to Supabase Write Method ✅ DECIDED
+
+**Decision:** How does the Python pipeline write data to Supabase?
+
+**Chosen:** supabase-py — the official Supabase Python client library.
+
+**Rationale:** Simple setup requiring only the Supabase project URL and service role key. Supports bulk upserts adequate for 50,000 rows or fewer. Consistent with the Supabase ecosystem used on the frontend.
+
+**Implementation note:** Use batch/bulk upserts, not row-by-row inserts. Tables should include a pipeline_run_id column so multiple runs are isolated and the UI can read from the latest completed run.
+
+**Status: DECIDED — supabase-py official Python SDK, bulk upserts, run-isolated by pipeline_run_id.**
+
+---
+
+## Open
+
+*(No architectural decisions are currently open. All decisions have been approved and locked.)*
+
+---
+
+## Decision Summary
+
+| ID | Topic | Decision |
+|---|---|---|
+| D-001 | Database | Supabase PostgreSQL |
+| D-002 | Backend | None — Python writes to Supabase, Next.js reads from Supabase |
+| D-003 | ML Models | Logistic Regression (baseline) + XGBoost (comparison) |
+| D-004 | Frontend | Next.js + TypeScript + Tailwind CSS |
+| D-005 | LLM | Optional Gemini API, explanation-only, not yet implemented |
+| D-006 | Deployment | Vercel (Next.js) + Supabase (data); AWS excluded |
+| D-007 | Language | Python (pipeline) + TypeScript (frontend) |
+| D-008 | Python to Supabase | supabase-py SDK, bulk upserts, pipeline_run_id isolation |
+
+---
+
+*All decisions are locked. Any change requires explicit user approval before implementation.*
