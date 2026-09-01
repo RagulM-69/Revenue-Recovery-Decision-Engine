@@ -1,26 +1,21 @@
-﻿# policy_config.yaml — Revenue Recovery Decision Engine
+# policy_config.yaml — Revenue Recovery Decision Engine
 # Guardrail thresholds for the policy engine.
-# All values are PLACEHOLDERS. These will be tuned during implementation.
-# No production values are used here.
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STATUS: PLACEHOLDER — not yet used by any implementation
-# ─────────────────────────────────────────────────────────────────────────────
 
 policy:
-  version: "0.1.0-draft"
+  version: "1.0.0"
 
-  intervention_cost: null          # TBD: estimated cost per retry attempt (currency units)
+  intervention_cost: 15.00         # Estimated cost per retry attempt (INR)
 
   guardrails:
-    max_retry_count: null          # TBD: maximum retries allowed per payment
-    recovery_window_hours: null    # TBD: hours after failure within which retry is allowed
-    min_confidence: null           # TBD: minimum P(recovery) to permit RETRY
-    min_erv: null                  # TBD: minimum Expected Recovery Value to permit RETRY
-    high_value_threshold: null     # TBD: amount above which ESCALATE is required
-    low_value_threshold: null      # TBD: amount below which DO_NOTHING is preferred
+    max_retry_count: 3             # Maximum retries allowed per payment
+    recovery_window_hours: 72       # Hours after failure within which retry is allowed
+    min_confidence: 0.05            # Minimum P(recovery) to permit RETRY
+    min_erv: 0.00                   # Minimum Expected Recovery Value (INR) to permit RETRY
+    high_value_threshold: 100000.00 # Amount (INR) above which ESCALATE is required for ambiguous cases
+    low_value_threshold: 100.00     # Amount (INR) below which DO_NOTHING is preferred
 
-  failure_reason_blocklist:        # TBD: failure reasons that unconditionally block RETRY
+  failure_reason_blocklist:         # Failure reasons that unconditionally block RETRY
     - "account_closed"
     - "card_permanently_blocked"
-    # Additional codes TBD based on synthetic data schema
+    - "suspected_fraud"
+    - "velocity_check_failed"
