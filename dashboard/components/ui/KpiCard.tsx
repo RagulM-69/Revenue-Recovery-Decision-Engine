@@ -19,26 +19,26 @@ export const KpiCard: React.FC<KpiCardProps> = ({
 }) => {
   const variantStyles = {
     default: 'bg-white border-slate-200 text-slate-900',
-    success: 'bg-emerald-50/60 border-emerald-200 text-emerald-950',
-    warning: 'bg-amber-50/60 border-amber-200 text-amber-950',
-    danger: 'bg-rose-50/60 border-rose-200 text-rose-950',
-    info: 'bg-sky-50/60 border-sky-200 text-sky-950',
+    success: 'bg-white border-slate-200 text-slate-900 border-l-4 border-l-emerald-500',
+    warning: 'bg-white border-slate-200 text-slate-900 border-l-4 border-l-amber-500',
+    danger: 'bg-white border-slate-200 text-slate-900 border-l-4 border-l-rose-500',
+    info: 'bg-white border-slate-200 text-slate-900 border-l-4 border-l-sky-500',
   };
 
   const iconBgStyles = {
     default: 'bg-slate-100 text-slate-600',
-    success: 'bg-emerald-100 text-emerald-600',
-    warning: 'bg-amber-100 text-amber-600',
-    danger: 'bg-rose-100 text-rose-600',
-    info: 'bg-sky-100 text-sky-600',
+    success: 'bg-emerald-50 text-emerald-600 border border-emerald-100',
+    warning: 'bg-amber-50 text-amber-600 border border-amber-100',
+    danger: 'bg-rose-50 text-rose-600 border border-rose-100',
+    info: 'bg-sky-50 text-sky-600 border border-sky-100',
   };
 
   return (
     <div
-      className={`p-5 rounded-xl border shadow-sm transition-all duration-150 hover:shadow-md ${variantStyles[variant]}`}
+      className={`p-5 rounded-xl border shadow-2xs transition-all duration-200 hover:shadow-xs ${variantStyles[variant]}`}
     >
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
           {title}
         </span>
         {icon && (
@@ -48,17 +48,17 @@ export const KpiCard: React.FC<KpiCardProps> = ({
         )}
       </div>
 
-      <div className="mt-3 flex items-baseline justify-between">
-        <span className="text-2xl font-bold tracking-tight">{value}</span>
+      <div className="mt-3 flex items-baseline justify-between gap-2">
+        <span className="text-2xl font-bold tracking-tight text-slate-900">{value}</span>
         {trend && (
-          <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+          <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/80 shrink-0">
             {trend}
           </span>
         )}
       </div>
 
       {subtitle && (
-        <p className="mt-2 text-xs text-slate-500 leading-relaxed">
+        <p className="mt-2 text-xs text-slate-500 leading-relaxed font-normal">
           {subtitle}
         </p>
       )}
