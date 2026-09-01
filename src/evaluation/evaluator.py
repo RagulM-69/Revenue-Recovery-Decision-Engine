@@ -66,7 +66,10 @@ class SystemEvaluator:
         ]
         correct_non_action_value = float(len(correct_non_actions) * self.intervention_cost)
 
-        # Rates & Precision/Recall
+        # Rates & Precision/Recall: Realized Simulation Recovery Metrics
+        # NOTE: recovery_precision and recovery_recall measure ACTUAL SIMULATED RECOVERIES vs retries/ground-truth.
+        # - Realized Precision = (Actual RECOVERED count) / (Total RETRY decisions)
+        # - Realized Recall    = (Actual RECOVERED count) / (Total ground-truth recoverable payments)
         retry_count = len(retries_df)
         recovered_count = len(recovered_df)
         failed_retry_count = len(df_eval[df_eval["outcome_type"] == "NOT_RECOVERED"])
@@ -120,7 +123,9 @@ class SystemEvaluator:
                 "count": count
             })
 
-        # Confusion Matrix (RETRY vs Ground Truth)
+        # Policy Classification Confusion Matrix (Policy Action vs Ground Truth)
+        # NOTE: This matrix measures classifier policy selection (RETRY vs DO_NOTHING) against latent ground truth.
+        # It differs from realized simulation precision/recall because simulation has a ~90% realization rate on recoverable payments.
         y_pred_retry = (df_eval["decision"] == "RETRY").astype(int).values
         tn, fp, fn, tp = confusion_matrix(y_true, y_pred_retry, labels=[0, 1]).ravel()
 

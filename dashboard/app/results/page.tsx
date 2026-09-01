@@ -13,8 +13,7 @@ import {
   formatPercent,
 } from '@/lib/data-access';
 import { EvaluationResult, RecoveryOutcome } from '@/lib/types';
-import { InlineStat } from '@/components/ui/StatCard';
-import { CheckCircle, XCircle, Minus, AlertCircle, RefreshCw } from 'lucide-react';
+import { CheckCircle, XCircle, Minus, AlertCircle, RefreshCw, Calendar, Info } from 'lucide-react';
 
 export default function ResultsPage() {
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
@@ -26,10 +25,11 @@ export default function ResultsPage() {
     setLoading(true);
     const run = await getLatestCompletedRun();
     if (run) {
+      // Evaluation page — fetch evaluation-scoped data (996 events)
       const [ev, oc, occ] = await Promise.all([
         getEvaluationResults(run.run_id),
-        getRecoveryOutcomes(run.run_id, 200),
-        import('@/lib/data-access').then(m => m.getOutcomeCounts(run.run_id)),
+        getRecoveryOutcomes(run.run_id, 200, true),
+        getOutcomeCounts(run.run_id, true),
       ]);
       setEvalResult(ev);
       setOutcomes(oc);
@@ -44,15 +44,21 @@ export default function ResultsPage() {
     <div className="flex-1">
       <PageHeader
         title="Results & Business Impact"
-        subtitle="Financial impact of the recovery engine vs baseline strategies. All metrics from the latest completed analysis."
+        subtitle="Financial impact and recovery metrics calculated over the held-out temporal evaluation window."
         actions={
-          <button
-            onClick={load}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-          >
-            <RefreshCw size={12} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 border border-sky-200 rounded-md text-xs font-semibold text-sky-800">
+              <Calendar size={13} className="text-sky-600" />
+              Evaluation Window · Days 21–30 · 996 events
+            </span>
+            <button
+              onClick={load}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <RefreshCw size={12} />
+              Refresh
+            </button>
+          </div>
         }
       />
 
@@ -67,9 +73,15 @@ export default function ResultsPage() {
           <>
             {/* ── Financial Impact Metrics ────────────────────────────── */}
             <div>
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                Financial Impact
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Financial Impact (Evaluation Window)
+                </h2>
+                <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md">
+                  996 Evaluation Events
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <StatCard
                   label="Revenue at Risk"
@@ -86,25 +98,25 @@ export default function ResultsPage() {
                 <StatCard
                   label="Net Recovery Value"
                   value={formatINR(Number(evalResult.net_recovery_value))}
-                  sub={`After ₹${Number(evalResult.intervention_cost_total).toFixed(0)} in intervention costs`}
+                  sub={`After ₹${Number(evalResult.intervention_cost_total).toFixed(0)} in intervention fees`}
                   accent="green"
                 />
                 <StatCard
                   label="Recovery Recall"
                   value={formatPercent(Number(evalResult.recovery_recall))}
-                  sub="% of recoverable events captured"
+                  sub="% of recoverable events captured (480 / 516)"
                   accent="blue"
                 />
                 <StatCard
                   label="Precision"
                   value={formatPercent(Number(evalResult.recovery_precision))}
-                  sub="% of retries that actually recovered"
+                  sub="% of retries that recovered (480 / 748)"
                   accent="slate"
                 />
                 <StatCard
                   label="Fee Savings (DO_NOTHING)"
                   value={formatINR(Number(evalResult.correct_non_action_value))}
-                  sub="Avoided gateway fees on hard declines"
+                  sub="248 blocked hard declines × ₹15.00 fee"
                   accent="amber"
                 />
               </div>
@@ -113,7 +125,7 @@ export default function ResultsPage() {
             {/* ── Strategy Comparison ─────────────────────────────────── */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
               <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
-                Strategy Comparison — Net Recovery Value
+                Strategy Comparison — Net Recovery Value (996 Evaluation Events)
               </h2>
 
               <div className="space-y-4">
@@ -174,22 +186,29 @@ export default function ResultsPage() {
                 </div>
               </div>
 
-              <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
-                <span className="font-semibold">Economic Takeaway:</span> The Decision Engine recovers{' '}
-                <span className="font-semibold">{formatINR(Number(evalResult.net_recovery_value))}</span> vs
-                the{' '}
-                <span className="font-semibold">{formatINR(Number(evalResult.baseline_always_retry_net))}</span>{' '}
-                Always Retry baseline — while eliminating{' '}
-                <span className="font-semibold">{formatINR(Number(evalResult.correct_non_action_value))}</span>{' '}
-                in unnecessary gateway fees on unrecoverable payments.
+              {/* FIX 6 Callout: Explanation of Baseline Comparison */}
+              <div className="mt-4 p-4 bg-sky-50 border border-sky-200 rounded-lg flex items-start gap-3 text-xs text-sky-900 leading-relaxed">
+                <Info size={16} className="mt-0.5 text-sky-600 shrink-0" />
+                <div>
+                  <strong className="font-semibold block mb-1">Baseline Comparison Note (Synthetic Simulation Assumption):</strong>
+                  The synthetic simulator allows a 5% recovery probability even for payments classified as unrecoverable. Always Retry therefore captures some stochastic recoveries on high-value unrecoverable payments that the policy engine intentionally avoids. The Decision Engine prioritizes policy constraints (avoiding retries on fraud, card blocks, and closed accounts) and eliminating gateway fee waste on hard declines (saving {formatINR(Number(evalResult.correct_non_action_value))}).
+                </div>
               </div>
             </div>
 
             {/* ── Outcome Distribution ────────────────────────────────── */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
-                Recovery Outcome Distribution
-              </h2>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    Recovery Outcome Distribution (Evaluation Scope)
+                  </h2>
+                  <span className="text-[11px] text-slate-500">
+                    {outcomeCounts.total.toLocaleString()} Evaluation Window Outcomes (Days 21–30)
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
                 {[
                   { key: 'RECOVERED', icon: <CheckCircle size={18} className="text-emerald-500" />, label: 'Recovered' },
@@ -204,7 +223,7 @@ export default function ResultsPage() {
                       {item.icon}
                       <div className="text-lg font-bold text-slate-900">{count.toLocaleString()}</div>
                       <div className="text-[11px] font-semibold text-slate-600">{item.label}</div>
-                      <div className="text-[11px] text-slate-400">{pct}% of total</div>
+                      <div className="text-[11px] text-slate-400">{pct}% of eval set</div>
                     </div>
                   );
                 })}
@@ -243,7 +262,7 @@ export default function ResultsPage() {
                 </table>
                 {outcomes.length > 50 && (
                   <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-400">
-                    Showing 50 of {outcomes.length.toLocaleString()} outcomes
+                    Showing 50 of {outcomes.length.toLocaleString()} evaluation outcomes
                   </div>
                 )}
               </div>

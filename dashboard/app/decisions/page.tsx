@@ -20,6 +20,7 @@ import {
   AlertTriangle,
   XCircle,
   RefreshCw,
+  Database,
 } from 'lucide-react';
 
 const FILTERS = ['ALL', 'RETRY', 'DO_NOTHING', 'ESCALATE'] as const;
@@ -39,9 +40,10 @@ export default function DecisionsPage() {
     const run = await getLatestCompletedRun();
     if (!run) { setLoading(false); return; }
     setRunId(run.run_id);
+    // Operational page — fetch FULL RUN decisions (3,000 events)
     const [list, dc] = await Promise.all([
-      getDecisions(run.run_id, 'ALL', 500),
-      import('@/lib/data-access').then(m => m.getDecisionCounts(run.run_id)),
+      getDecisions(run.run_id, 'ALL', 500, false),
+      getDecisionCounts(run.run_id, false),
     ]);
     setDecisions(list);
     setFiltered(list);
@@ -71,15 +73,21 @@ export default function DecisionsPage() {
     <div className="flex-1">
       <PageHeader
         title="Recovery Decisions"
-        subtitle={`${counts.total.toLocaleString()} automated decisions — search, filter, and inspect each ML score, ERV calculation, and guardrail evaluation.`}
+        subtitle={`Operational audit view across all ${counts.total.toLocaleString()} automated decisions — search, filter, and inspect each ML score, ERV calculation, and guardrail evaluation.`}
         actions={
-          <button
-            onClick={load}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-          >
-            <RefreshCw size={12} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 border border-slate-200 rounded-md text-xs font-semibold text-slate-700">
+              <Database size={13} className="text-slate-500" />
+              Full Run · {counts.total.toLocaleString()} events
+            </span>
+            <button
+              onClick={load}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+            >
+              <RefreshCw size={12} />
+              Refresh
+            </button>
+          </div>
         }
       />
 
@@ -87,7 +95,7 @@ export default function DecisionsPage() {
         {/* ── Summary Counts Bar ──────────────────────────────────────── */}
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: 'Total Decisions', value: counts.total, color: 'text-slate-900' },
+            { label: 'Total Decisions (Full Run)', value: counts.total, color: 'text-slate-900' },
             { label: 'RETRY', value: counts.RETRY, color: 'text-emerald-700' },
             { label: 'DO NOTHING', value: counts.DO_NOTHING, color: 'text-slate-600' },
             { label: 'ESCALATE', value: counts.ESCALATE, color: 'text-amber-700' },

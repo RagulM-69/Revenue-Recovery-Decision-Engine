@@ -3,10 +3,9 @@
 import React, { useEffect, useState } from 'react';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
-import { InlineStat } from '@/components/ui/StatCard';
 import { getLatestCompletedRun, getEvaluationResults, formatPercent } from '@/lib/data-access';
 import { EvaluationResult, CalibrationBin } from '@/lib/types';
-import { RefreshCw, CheckCircle, Info } from 'lucide-react';
+import { RefreshCw, CheckCircle, Info, Calendar } from 'lucide-react';
 
 export default function ModelPage() {
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
@@ -33,9 +32,15 @@ export default function ModelPage() {
         title="Model Performance"
         subtitle="ML model selection, predictive quality metrics, calibration, and benchmark comparison against the XGBoost alternative."
         actions={
-          <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
-            <RefreshCw size={12} /> Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-sky-50 border border-sky-200 rounded-md text-xs font-semibold text-sky-800">
+              <Calendar size={13} className="text-sky-600" />
+              Evaluation Window · Days 21–30 · 996 events
+            </span>
+            <button onClick={load} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer">
+              <RefreshCw size={12} /> Refresh
+            </button>
+          </div>
         }
       />
 
@@ -76,9 +81,15 @@ export default function ModelPage() {
 
             {/* ── Predictive Quality Metrics ──────────────────────────── */}
             <div>
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                Predictive Quality Metrics
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  Predictive Quality Metrics (Realized Simulation Recovery)
+                </h2>
+                <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md">
+                  996 Evaluation Events
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <StatCard
                   label="Brier Score"
@@ -95,13 +106,13 @@ export default function ModelPage() {
                 <StatCard
                   label="Recovery Precision"
                   value={formatPercent(Number(evalResult.recovery_precision))}
-                  sub="Of RETRY decisions, how many resulted in actual recovery."
+                  sub="Realized recovery: 480 recovered / 748 retries"
                   accent="slate"
                 />
                 <StatCard
                   label="Recovery Recall"
                   value={formatPercent(Number(evalResult.recovery_recall))}
-                  sub="Of all recoverable failures, what % were captured."
+                  sub="Realized recall: 480 recovered / 516 recoverable"
                   accent="slate"
                 />
               </div>
@@ -152,32 +163,47 @@ export default function ModelPage() {
 
             {/* ── Confusion Matrix & Calibration ─────────────────────── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Confusion Matrix */}
+              {/* Policy Classification Confusion Matrix */}
               {cm && (
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                    Confusion Matrix (Eval Window)
-                  </h2>
-                  <div className="grid grid-cols-2 gap-2 max-w-xs">
-                    {[
-                      { label: 'True Positives (TP)', value: cm.tp, color: 'bg-emerald-50 border-emerald-200 text-emerald-900' },
-                      { label: 'False Positives (FP)', value: cm.fp, color: 'bg-rose-50 border-rose-200 text-rose-900' },
-                      { label: 'False Negatives (FN)', value: cm.fn, color: 'bg-rose-50 border-rose-200 text-rose-900' },
-                      { label: 'True Negatives (TN)', value: cm.tn, color: 'bg-slate-50 border-slate-200 text-slate-800' },
-                    ].map(cell => (
-                      <div key={cell.label} className={`border rounded-lg p-3 ${cell.color}`}>
-                        <div className="text-xl font-bold">{cell.value}</div>
-                        <div className="text-[10px] font-semibold mt-0.5">{cell.label}</div>
-                      </div>
-                    ))}
+                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Policy Classification Matrix
+                      </h2>
+                      <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                        Policy vs Ground Truth
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
+                      Measures policy classification selection (<code className="bg-slate-100 px-1 rounded">decision == RETRY</code>) vs latent ground-truth recoverability across 996 eval events.
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 max-w-xs">
+                      {[
+                        { label: 'True Positives (TP)', value: cm.tp, sub: 'Retried & Recoverable', color: 'bg-emerald-50 border-emerald-200 text-emerald-900' },
+                        { label: 'False Positives (FP)', value: cm.fp, sub: 'Retried & Unrecoverable', color: 'bg-rose-50 border-rose-200 text-rose-900' },
+                        { label: 'False Negatives (FN)', value: cm.fn, sub: 'Blocked & Recoverable', color: 'bg-rose-50 border-rose-200 text-rose-900' },
+                        { label: 'True Negatives (TN)', value: cm.tn, sub: 'Blocked & Unrecoverable', color: 'bg-slate-50 border-slate-200 text-slate-800' },
+                      ].map(cell => (
+                        <div key={cell.label} className={`border rounded-lg p-3 ${cell.color}`}>
+                          <div className="text-xl font-bold">{cell.value}</div>
+                          <div className="text-[10px] font-semibold mt-0.5">{cell.label}</div>
+                          <div className="text-[9px] opacity-75 mt-0.5">{cell.sub}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
+                  <p className="text-[10px] text-slate-400 mt-4 pt-3 border-t border-slate-100 leading-relaxed">
+                    <strong>Note:</strong> Policy Precision is 68.98% (516/748) and Policy Recall is 100.0% (516/516). Realized Precision (64.17%) and Recall (93.02%) above account for the ~90% simulation realization success rate on retried payments.
+                  </p>
                 </div>
               )}
 
               {/* Calibration Bins */}
               <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
                 <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
-                  Reliability / Calibration Bins
+                  Reliability / Calibration Bins (10 Bins)
                 </h2>
                 <div className="space-y-1.5">
                   {calibrationBins.filter(b => b.count > 0).map((bin: CalibrationBin) => (

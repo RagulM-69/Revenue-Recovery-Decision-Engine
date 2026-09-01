@@ -20,7 +20,6 @@ export function formatINR(amount: number): string {
 
 export function formatPercent(value: number): string {
   if (value === null || value === undefined) return '0.0%';
-  // Value may come as decimal (0.64) or already percentage (64) — normalize
   const pct = value <= 1.0 ? value * 100 : value;
   return `${pct.toFixed(1)}%`;
 }
@@ -39,9 +38,6 @@ export function formatDate(dateString: string): string {
 
 // ─── Pipeline Runs ────────────────────────────────────────────────────────────
 
-/**
- * Fetch the latest completed pipeline run.
- */
 export async function getLatestCompletedRun(): Promise<PipelineRun | null> {
   try {
     const { data, error } = await supabase
@@ -63,9 +59,6 @@ export async function getLatestCompletedRun(): Promise<PipelineRun | null> {
   }
 }
 
-/**
- * Fetch all completed pipeline runs for a run selector.
- */
 export async function getAllCompletedRuns(): Promise<PipelineRun[]> {
   try {
     const { data, error } = await supabase
@@ -83,9 +76,6 @@ export async function getAllCompletedRuns(): Promise<PipelineRun[]> {
 
 // ─── Evaluation Results ───────────────────────────────────────────────────────
 
-/**
- * Fetch evaluation results for a given pipeline run.
- */
 export async function getEvaluationResults(
   runId: string
 ): Promise<EvaluationResult | null> {
@@ -111,24 +101,30 @@ export async function getEvaluationResults(
 
 /**
  * Fetch paginated/filtered decisions with payment & failure details.
- * Uses correct column name: decided_at (not created_at).
+ * Explicit limit=5000 avoids PostgREST 1000-row default truncation.
+ * Supports evalOnly filter (evaluation set: Days 21-30).
  */
 export async function getDecisions(
   runId: string,
   decisionFilter?: string,
-  limit: number = 500
+  limit: number = 500,
+  evalOnly: boolean = false
 ): Promise<Decision[]> {
   try {
     let query = supabase
       .from('recovery_decisions')
       .select(`
         *,
-        payments (amount, payment_method, customer_id),
+        payments!inner (amount, payment_method, customer_id, is_eval_set),
         failure_events (failure_category, failure_reason, failed_at)
       `)
       .eq('pipeline_run_id', runId)
       .order('decided_at', { ascending: false })
       .limit(limit);
+
+    if (evalOnly) {
+      query = query.eq('payments.is_eval_set', true);
+    }
 
     if (decisionFilter && decisionFilter !== 'ALL') {
       query = query.eq('decision', decisionFilter);
@@ -153,16 +149,25 @@ export async function getDecisions(
 
 /**
  * Count decisions grouped by type for a run.
+ * Explicit limit(5000) prevents PostgREST default 1000-row truncation cap.
+ * Supports evalOnly filter to return counts specifically for evaluation scope.
  */
 export async function getDecisionCounts(
-  runId: string
+  runId: string,
+  evalOnly: boolean = false
 ): Promise<{ RETRY: number; ESCALATE: number; DO_NOTHING: number; total: number }> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('recovery_decisions')
-      .select('decision')
-      .eq('pipeline_run_id', runId);
+      .select('decision, payments!inner(is_eval_set)')
+      .eq('pipeline_run_id', runId)
+      .limit(5000);
 
+    if (evalOnly) {
+      query = query.eq('payments.is_eval_set', true);
+    }
+
+    const { data, error } = await query;
     if (error || !data) return { RETRY: 0, ESCALATE: 0, DO_NOTHING: 0, total: 0 };
 
     const counts = { RETRY: 0, ESCALATE: 0, DO_NOTHING: 0, total: data.length };
@@ -181,19 +186,29 @@ export async function getDecisionCounts(
 
 /**
  * Fetch recovery outcomes for a run.
+ * Supports evalOnly filter for evaluation window.
  */
 export async function getRecoveryOutcomes(
   runId: string,
-  limit: number = 500
+  limit: number = 500,
+  evalOnly: boolean = false
 ): Promise<RecoveryOutcome[]> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('recovery_outcomes')
-      .select('*')
+      .select(`
+        *,
+        failure_events!inner(failed_at, payments!inner(is_eval_set))
+      `)
       .eq('pipeline_run_id', runId)
       .order('recorded_at', { ascending: false })
       .limit(limit);
 
+    if (evalOnly) {
+      query = query.eq('failure_events.payments.is_eval_set', true);
+    }
+
+    const { data, error } = await query;
     if (error) {
       console.error('getRecoveryOutcomes error:', error);
       return [];
@@ -207,15 +222,25 @@ export async function getRecoveryOutcomes(
 
 /**
  * Count recovery outcomes grouped by type for a run.
+ * Explicit limit(5000) prevents PostgREST default 1000-row truncation cap.
+ * Supports evalOnly filter for evaluation scope.
  */
 export async function getOutcomeCounts(
-  runId: string
+  runId: string,
+  evalOnly: boolean = false
 ): Promise<{ RECOVERED: number; NOT_RECOVERED: number; ESCALATED_PENDING: number; NO_ACTION_TAKEN: number; total: number }> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('recovery_outcomes')
-      .select('outcome_type')
-      .eq('pipeline_run_id', runId);
+      .select('outcome_type, failure_events!inner(payments!inner(is_eval_set))')
+      .eq('pipeline_run_id', runId)
+      .limit(5000);
+
+    if (evalOnly) {
+      query = query.eq('failure_events.payments.is_eval_set', true);
+    }
+
+    const { data, error } = await query;
 
     if (error || !data) return { RECOVERED: 0, NOT_RECOVERED: 0, ESCALATED_PENDING: 0, NO_ACTION_TAKEN: 0, total: 0 };
 
@@ -233,10 +258,6 @@ export async function getOutcomeCounts(
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
-/**
- * Fetch audit log entries for a run.
- * Uses correct column name: created_at (actual DB column).
- */
 export async function getAuditLogs(
   runId: string,
   limit: number = 500

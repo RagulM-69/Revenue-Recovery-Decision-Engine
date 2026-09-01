@@ -23,6 +23,7 @@ import {
   Minus,
   RotateCcw,
   AlertCircle,
+  Calendar,
 } from 'lucide-react';
 
 interface Counts {
@@ -33,7 +34,7 @@ interface Counts {
 export default function OverviewPage() {
   const [run, setRun] = useState<PipelineRun | null>(null);
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
-  const [counts, setCounts] = useState<Counts | null>(null);
+  const [evalCounts, setEvalCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -42,22 +43,23 @@ export default function OverviewPage() {
       const r = await getLatestCompletedRun();
       setRun(r);
       if (r) {
+        // Fetch evaluation results and evaluation-scoped counts (996 events)
         const [ev, dc, oc] = await Promise.all([
           getEvaluationResults(r.run_id),
-          getDecisionCounts(r.run_id),
-          getOutcomeCounts(r.run_id),
+          getDecisionCounts(r.run_id, true),
+          getOutcomeCounts(r.run_id, true),
         ]);
         setEvalResult(ev);
-        setCounts({ decisions: dc, outcomes: oc });
+        setEvalCounts({ decisions: dc, outcomes: oc });
       }
       setLoading(false);
     }
     load();
   }, []);
 
-  const retryPct = counts ? (counts.decisions.RETRY / (counts.decisions.total || 1)) : 0;
-  const doNothingPct = counts ? (counts.decisions.DO_NOTHING / (counts.decisions.total || 1)) : 0;
-  const escalatePct = counts ? (counts.decisions.ESCALATE / (counts.decisions.total || 1)) : 0;
+  const retryPct = evalCounts ? (evalCounts.decisions.RETRY / (evalCounts.decisions.total || 1)) : 0;
+  const doNothingPct = evalCounts ? (evalCounts.decisions.DO_NOTHING / (evalCounts.decisions.total || 1)) : 0;
+  const escalatePct = evalCounts ? (evalCounts.decisions.ESCALATE / (evalCounts.decisions.total || 1)) : 0;
 
   return (
     <div className="flex-1">
@@ -93,16 +95,23 @@ export default function OverviewPage() {
           </div>
         </div>
 
-        {/* Run info pill */}
+        {/* Run info & Evaluation Scope Badges */}
         {run && (
-          <div className="mt-6 inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-            <span className="font-medium text-slate-700">Latest Analysis:</span>
-            <span className="font-mono">{run.run_id.substring(0, 18)}…</span>
-            <span>·</span>
-            <span>{run.total_events_processed.toLocaleString()} events</span>
-            <span>·</span>
-            <span>Completed {formatDate(run.completed_at || '')}</span>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+              <span className="font-medium text-slate-700">Latest Analysis:</span>
+              <span className="font-mono">{run.run_id.substring(0, 18)}…</span>
+              <span>·</span>
+              <span>{run.total_events_processed.toLocaleString()} total events</span>
+              <span>·</span>
+              <span>Completed {formatDate(run.completed_at || '')}</span>
+            </div>
+
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-xs font-semibold text-sky-800">
+              <Calendar size={13} className="text-sky-600" />
+              <span>Evaluation Window: Days 21–30 · 996 events</span>
+            </div>
           </div>
         )}
       </div>
@@ -133,26 +142,32 @@ export default function OverviewPage() {
         <div className="p-8 space-y-8">
           {/* ── Key Recovery Metrics ────────────────────────────────────── */}
           <div>
-            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">
-              Latest Analysis — Key Metrics
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                Key Performance Metrics
+              </h2>
+              <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 border border-sky-200 px-2.5 py-0.5 rounded-md">
+                Evaluation Window · 996 events
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
               <StatCard
                 label="Revenue at Risk"
                 value={evalResult ? formatINR(Number(evalResult.revenue_at_risk)) : '—'}
-                sub="Total failed payment value in eval window"
+                sub="996 eval window failed payments"
                 accent="red"
               />
               <StatCard
                 label="Gross Recovered"
                 value={evalResult ? formatINR(Number(evalResult.recovered_revenue_gross)) : '—'}
-                sub="Revenue recovered via automated retries"
+                sub="Revenue recovered via retries"
                 accent="green"
               />
               <StatCard
                 label="Net Recovery Value"
                 value={evalResult ? formatINR(Number(evalResult.net_recovery_value)) : '—'}
-                sub="Gross recovered minus intervention costs"
+                sub="Gross recovered minus intervention fees"
                 accent="green"
               />
               <StatCard
@@ -177,7 +192,7 @@ export default function OverviewPage() {
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               {[
-                { label: 'Failed Payment', sub: `${run.total_events_processed.toLocaleString()} events` },
+                { label: 'Failed Payment', sub: '996 eval events' },
                 null,
                 { label: 'ML Recovery Score', sub: 'P(recovery) per event' },
                 null,
@@ -204,23 +219,26 @@ export default function OverviewPage() {
             {/* Decision Distribution */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Decision Distribution
-                </h2>
+                <div>
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Decision Distribution
+                  </h2>
+                  <span className="text-[10px] text-slate-400 font-medium">Evaluation Window · 996 events</span>
+                </div>
                 <Link
                   href="/decisions"
                   className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
                 >
-                  View all <GitBranch size={12} />
+                  Full Run (3,000) <GitBranch size={12} />
                 </Link>
               </div>
 
-              {counts ? (
+              {evalCounts ? (
                 <div className="space-y-3">
                   {[
                     {
                       label: 'RETRY',
-                      count: counts.decisions.RETRY,
+                      count: evalCounts.decisions.RETRY,
                       pct: retryPct,
                       color: 'bg-emerald-500',
                       textColor: 'text-emerald-700',
@@ -228,7 +246,7 @@ export default function OverviewPage() {
                     },
                     {
                       label: 'DO NOTHING',
-                      count: counts.decisions.DO_NOTHING,
+                      count: evalCounts.decisions.DO_NOTHING,
                       pct: doNothingPct,
                       color: 'bg-slate-300',
                       textColor: 'text-slate-600',
@@ -236,7 +254,7 @@ export default function OverviewPage() {
                     },
                     {
                       label: 'ESCALATE',
-                      count: counts.decisions.ESCALATE,
+                      count: evalCounts.decisions.ESCALATE,
                       pct: escalatePct,
                       color: 'bg-amber-400',
                       textColor: 'text-amber-700',
@@ -263,7 +281,7 @@ export default function OverviewPage() {
                   ))}
 
                   <p className="pt-2 text-[11px] text-slate-500 border-t border-slate-100 mt-3">
-                    {counts.decisions.DO_NOTHING} payments blocked — saved ≈ ₹{(counts.decisions.DO_NOTHING * 15).toLocaleString()} in unrecoverable gateway fees.
+                    {evalCounts.decisions.DO_NOTHING} payments blocked — saved ≈ ₹{(evalCounts.decisions.DO_NOTHING * 15).toLocaleString()} in unrecoverable gateway fees.
                   </p>
                 </div>
               ) : (
@@ -274,9 +292,12 @@ export default function OverviewPage() {
             {/* Strategy Comparison */}
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  Strategy Comparison
-                </h2>
+                <div>
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Strategy Comparison
+                  </h2>
+                  <span className="text-[10px] text-slate-400 font-medium">Evaluation Window · 996 events</span>
+                </div>
                 <Link
                   href="/results"
                   className="text-xs font-medium text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
@@ -338,34 +359,42 @@ export default function OverviewPage() {
           </div>
 
           {/* ── Recovery Outcome Summary ─────────────────────────────────── */}
-          {counts && (
+          {evalCounts && (
             <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-              <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-5">
-                Recovery Outcomes — {counts.outcomes.total.toLocaleString()} Total Events
-              </h2>
+              <div className="flex items-center justify-between mb-5">
+                <div>
+                  <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    Recovery Outcomes — Evaluation Scope
+                  </h2>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {evalCounts.outcomes.total.toLocaleString()} Evaluation Window Events (Days 21–30)
+                  </span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
                   {
                     label: 'Recovered',
-                    count: counts.outcomes.RECOVERED,
+                    count: evalCounts.outcomes.RECOVERED,
                     icon: <CheckCircle size={16} className="text-emerald-500" />,
                     sub: 'Payment successfully retried',
                   },
                   {
                     label: 'Not Recovered',
-                    count: counts.outcomes.NOT_RECOVERED,
+                    count: evalCounts.outcomes.NOT_RECOVERED,
                     icon: <XCircle size={16} className="text-rose-500" />,
                     sub: 'Retry attempted, not recovered',
                   },
                   {
                     label: 'No Action Taken',
-                    count: counts.outcomes.NO_ACTION_TAKEN,
+                    count: evalCounts.outcomes.NO_ACTION_TAKEN,
                     icon: <Minus size={16} className="text-slate-400" />,
                     sub: 'Guardrails blocked retry',
                   },
                   {
                     label: 'Escalated',
-                    count: counts.outcomes.ESCALATED_PENDING,
+                    count: evalCounts.outcomes.ESCALATED_PENDING,
                     icon: <AlertCircle size={16} className="text-amber-500" />,
                     sub: 'Sent for manual review',
                   },
