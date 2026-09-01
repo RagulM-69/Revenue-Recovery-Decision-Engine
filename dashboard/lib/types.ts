@@ -65,7 +65,7 @@ export interface Decision {
   guardrails_applied: DecisionGuardrailCheck[];
   model_version: string;
   policy_version: string;
-  created_at: string;
+  decided_at: string; // actual column name
   // Joined fields
   payment?: {
     amount: number;
@@ -94,7 +94,7 @@ export interface RecoveryOutcome {
 export interface AuditLogEntry {
   log_id: string;
   pipeline_run_id: string;
-  timestamp: string;
+  created_at: string; // actual column name in DB
   entity_type: string;
   entity_id: string;
   event_type: string;

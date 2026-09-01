@@ -1,13 +1,17 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { Sidebar } from '@/components/layout/Sidebar';
+import { AppShell } from '@/components/layout/AppShell';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Revenue Recovery Decision Engine',
-  description: 'Automated ML & Deterministic Policy Payment Recovery Dashboard',
+  description: 'Intelligent automated recovery decisions for failed payments — ML scoring, policy guardrails, financial impact analysis.',
 };
 
 export default function RootLayout({
@@ -16,12 +20,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${inter.className} bg-slate-50 text-slate-900 antialiased min-h-screen flex`}>
-        <Sidebar />
-        <main className="flex-1 ml-64 min-h-screen flex flex-col">
-          {children}
-        </main>
+    <html lang="en" className={inter.variable}>
+      <body className="bg-[#f8fafc] text-slate-900 antialiased min-h-screen">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
