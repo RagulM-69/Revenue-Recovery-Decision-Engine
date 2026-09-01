@@ -37,7 +37,6 @@ A policy-constrained AI decision engine that classifies failed payments as RETRY
 | Frontend | Next.js + TypeScript + Tailwind CSS |
 | Deployment | Vercel (frontend) + Supabase (data) |
 | LLM | Optional Gemini API — explanation only |
-| AWS | Explicitly excluded |
 
 ---
 
