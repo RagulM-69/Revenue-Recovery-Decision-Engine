@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-[#f8fafc] text-slate-900 antialiased min-h-screen">
+      <body className="bg-[#F4F6F9] text-slate-900 antialiased min-h-screen">
         <AppShell>{children}</AppShell>
       </body>
     </html>

@@ -18,7 +18,7 @@ const variantMap: Record<string, string> = {
 
   ESCALATE: 'bg-amber-50 text-amber-800 border-amber-200',
   ESCALATED_PENDING: 'bg-amber-50 text-amber-800 border-amber-200',
-  RUNNING: 'bg-amber-50 text-amber-800 border-amber-200',
+  RUNNING: 'bg-blue-50 text-blue-700 border-blue-200',
 
   DO_NOTHING: 'bg-slate-100 text-slate-600 border-slate-200',
   NO_ACTION_TAKEN: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -35,7 +35,7 @@ const dotMap: Record<string, string> = {
   COMPLETED: 'bg-emerald-500',
   ESCALATE: 'bg-amber-500',
   ESCALATED_PENDING: 'bg-amber-500',
-  RUNNING: 'bg-amber-500',
+  RUNNING: 'bg-blue-500',
   DO_NOTHING: 'bg-slate-400',
   NO_ACTION_TAKEN: 'bg-slate-400',
   NOT_RECOVERED: 'bg-rose-500',
@@ -50,7 +50,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ value, variant }) => {
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold border ${cls}`}
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${cls}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${dot}`} />
       {value.replace(/_/g, ' ')}

@@ -12,30 +12,30 @@ html {
 }
 
 body {
-  background-color: #f8fafc;
+  background-color: #F4F6F9;
   color: #0f172a;
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 /* ─── Scrollbar Styling ───────────────────────────────────────────────────── */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #d1d5db;
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #9ca3af;
 }
 
 /* ─── Focus Visibility ────────────────────────────────────────────────────── */
 :focus-visible {
-  outline: 2px solid #10b981;
+  outline: 2px solid #3B82F6;
   outline-offset: 2px;
 }
 
@@ -43,4 +43,23 @@ body {
 table {
   border-collapse: collapse;
   width: 100%;
+}
+
+/* ─── Design Tokens ───────────────────────────────────────────────────────── */
+:root {
+  --color-accent: #3B82F6;
+  --color-accent-light: #EFF6FF;
+  --color-accent-border: #BFDBFE;
+  --color-surface: #FFFFFF;
+  --color-page-bg: #F4F6F9;
+  --color-border: #E4E9F0;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #94A3B8;
+}
+
+/* ─── Utility: Tabular nums for metrics ──────────────────────────────────── */
+.metric-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
 }
