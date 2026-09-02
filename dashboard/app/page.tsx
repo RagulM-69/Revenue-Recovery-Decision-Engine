@@ -97,21 +97,23 @@ export default function OverviewPage() {
 
         {/* Run info & Evaluation Scope Badges */}
         {run && (
-          <div className="mt-6 flex flex-wrap items-center gap-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-500">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-              <span className="font-medium text-slate-700">Latest Analysis:</span>
-              <span className="font-mono">{run.run_id.substring(0, 18)}…</span>
-              <span>·</span>
-              <span>{run.total_events_processed.toLocaleString()} total events</span>
-              <span>·</span>
-              <span>Completed {formatDate(run.completed_at || '')}</span>
+          <div className="mt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-slate-100">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="font-semibold text-slate-700">Full Run / Operational Activity:</span>
+                <span>Days 1–30 · {run.total_events_processed.toLocaleString()} events</span>
+              </div>
+
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-xs font-semibold text-sky-800">
+                <Calendar size={13} className="text-sky-600" />
+                <span>Evaluation Window: Days 21–30 · 996 events</span>
+              </div>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-200 rounded-lg text-xs font-semibold text-sky-800">
-              <Calendar size={13} className="text-sky-600" />
-              <span>Evaluation Window: Days 21–30 · 996 events</span>
-            </div>
+            <p className="text-[11px] text-slate-500">
+              <strong className="text-slate-700">Scope Note:</strong> Financial & model evaluation uses the held-out Evaluation Window (996 events). <Link href="/decisions" className="text-emerald-700 font-medium underline hover:text-emerald-800">Decisions</Link> and <Link href="/audit" className="text-emerald-700 font-medium underline hover:text-emerald-800">Audit</Link> represent the complete operational run (3,000 events).
+            </p>
           </div>
         )}
       </div>

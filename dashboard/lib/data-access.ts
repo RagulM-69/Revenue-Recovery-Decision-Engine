@@ -149,7 +149,8 @@ export async function getDecisions(
 
 /**
  * Count decisions grouped by type for a run.
- * Explicit limit(5000) prevents PostgREST default 1000-row truncation cap.
+ * Uses Supabase exact count with head: true to perform database-level counting,
+ * eliminating truncation from PostgREST's 1,000-row default response limit.
  * Supports evalOnly filter to return counts specifically for evaluation scope.
  */
 export async function getDecisionCounts(
@@ -157,27 +158,39 @@ export async function getDecisionCounts(
   evalOnly: boolean = false
 ): Promise<{ RETRY: number; ESCALATE: number; DO_NOTHING: number; total: number }> {
   try {
-    let query = supabase
-      .from('recovery_decisions')
-      .select('decision, payments!inner(is_eval_set)')
-      .eq('pipeline_run_id', runId)
-      .limit(5000);
+    const buildQuery = (decisionType?: string) => {
+      let query = evalOnly
+        ? supabase
+            .from('recovery_decisions')
+            .select('payments!inner(is_eval_set)', { count: 'exact', head: true })
+            .eq('pipeline_run_id', runId)
+            .eq('payments.is_eval_set', true)
+        : supabase
+            .from('recovery_decisions')
+            .select('*', { count: 'exact', head: true })
+            .eq('pipeline_run_id', runId);
 
-    if (evalOnly) {
-      query = query.eq('payments.is_eval_set', true);
-    }
+      if (decisionType) {
+        query = query.eq('decision', decisionType);
+      }
+      return query;
+    };
 
-    const { data, error } = await query;
-    if (error || !data) return { RETRY: 0, ESCALATE: 0, DO_NOTHING: 0, total: 0 };
+    const [totalRes, retryRes, doNothingRes, escalateRes] = await Promise.all([
+      buildQuery(),
+      buildQuery('RETRY'),
+      buildQuery('DO_NOTHING'),
+      buildQuery('ESCALATE'),
+    ]);
 
-    const counts = { RETRY: 0, ESCALATE: 0, DO_NOTHING: 0, total: data.length };
-    for (const row of data) {
-      if (row.decision === 'RETRY') counts.RETRY++;
-      else if (row.decision === 'ESCALATE') counts.ESCALATE++;
-      else if (row.decision === 'DO_NOTHING') counts.DO_NOTHING++;
-    }
-    return counts;
+    const total = totalRes.count ?? 0;
+    const RETRY = retryRes.count ?? 0;
+    const DO_NOTHING = doNothingRes.count ?? 0;
+    const ESCALATE = escalateRes.count ?? 0;
+
+    return { RETRY, ESCALATE, DO_NOTHING, total };
   } catch (e) {
+    console.error('Failed to get decision counts:', e);
     return { RETRY: 0, ESCALATE: 0, DO_NOTHING: 0, total: 0 };
   }
 }
@@ -201,7 +214,7 @@ export async function getRecoveryOutcomes(
         failure_events!inner(failed_at, payments!inner(is_eval_set))
       `)
       .eq('pipeline_run_id', runId)
-      .order('recorded_at', { ascending: false })
+      .order('outcomed_at', { ascending: false })
       .limit(limit);
 
     if (evalOnly) {
@@ -222,7 +235,8 @@ export async function getRecoveryOutcomes(
 
 /**
  * Count recovery outcomes grouped by type for a run.
- * Explicit limit(5000) prevents PostgREST default 1000-row truncation cap.
+ * Uses Supabase exact count with head: true to perform database-level counting,
+ * eliminating truncation from PostgREST's 1,000-row default response limit.
  * Supports evalOnly filter for evaluation scope.
  */
 export async function getOutcomeCounts(
@@ -230,28 +244,41 @@ export async function getOutcomeCounts(
   evalOnly: boolean = false
 ): Promise<{ RECOVERED: number; NOT_RECOVERED: number; ESCALATED_PENDING: number; NO_ACTION_TAKEN: number; total: number }> {
   try {
-    let query = supabase
-      .from('recovery_outcomes')
-      .select('outcome_type, failure_events!inner(payments!inner(is_eval_set))')
-      .eq('pipeline_run_id', runId)
-      .limit(5000);
+    const buildQuery = (outcomeType?: string) => {
+      let query = evalOnly
+        ? supabase
+            .from('recovery_outcomes')
+            .select('failure_events!inner(payments!inner(is_eval_set))', { count: 'exact', head: true })
+            .eq('pipeline_run_id', runId)
+            .eq('failure_events.payments.is_eval_set', true)
+        : supabase
+            .from('recovery_outcomes')
+            .select('*', { count: 'exact', head: true })
+            .eq('pipeline_run_id', runId);
 
-    if (evalOnly) {
-      query = query.eq('failure_events.payments.is_eval_set', true);
-    }
-
-    const { data, error } = await query;
-
-    if (error || !data) return { RECOVERED: 0, NOT_RECOVERED: 0, ESCALATED_PENDING: 0, NO_ACTION_TAKEN: 0, total: 0 };
-
-    const counts = { RECOVERED: 0, NOT_RECOVERED: 0, ESCALATED_PENDING: 0, NO_ACTION_TAKEN: 0, total: data.length };
-    for (const row of data) {
-      if (row.outcome_type in counts) {
-        (counts as any)[row.outcome_type]++;
+      if (outcomeType) {
+        query = query.eq('outcome_type', outcomeType);
       }
-    }
-    return counts;
+      return query;
+    };
+
+    const [totalRes, recRes, notRecRes, escRes, noActRes] = await Promise.all([
+      buildQuery(),
+      buildQuery('RECOVERED'),
+      buildQuery('NOT_RECOVERED'),
+      buildQuery('ESCALATED_PENDING'),
+      buildQuery('NO_ACTION_TAKEN'),
+    ]);
+
+    const total = totalRes.count ?? 0;
+    const RECOVERED = recRes.count ?? 0;
+    const NOT_RECOVERED = notRecRes.count ?? 0;
+    const ESCALATED_PENDING = escRes.count ?? 0;
+    const NO_ACTION_TAKEN = noActRes.count ?? 0;
+
+    return { RECOVERED, NOT_RECOVERED, ESCALATED_PENDING, NO_ACTION_TAKEN, total };
   } catch (e) {
+    console.error('Failed to get outcome counts:', e);
     return { RECOVERED: 0, NOT_RECOVERED: 0, ESCALATED_PENDING: 0, NO_ACTION_TAKEN: 0, total: 0 };
   }
 }

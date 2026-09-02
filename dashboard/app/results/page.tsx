@@ -162,8 +162,16 @@ export default function ResultsPage() {
                 {/* Always Retry */}
                 <div className="border border-slate-200 rounded-xl p-4 flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-semibold text-slate-700">Always Retry Baseline</div>
-                    <div className="text-xs text-slate-500">Retry 100% of all failed payments blindly — no ML, no guardrails</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-slate-700">Always Retry Baseline</span>
+                      <span
+                        title="The synthetic simulator allows occasional stochastic recovery (~5%) even on unrecoverable payments, but incurs 100% intervention fees. The Decision Engine avoids unnecessary intervention costs."
+                        className="inline-flex items-center text-slate-400 hover:text-slate-600 cursor-help"
+                      >
+                        <Info size={13} />
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 mt-0.5">Retry 100% of all failed payments blindly — no ML, no guardrails</div>
                   </div>
                   <div className="text-right">
                     <div className="text-base font-bold text-slate-700">

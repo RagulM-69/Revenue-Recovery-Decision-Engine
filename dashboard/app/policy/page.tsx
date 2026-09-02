@@ -12,13 +12,10 @@ const POLICY = {
   min_erv: 0.00,
   intervention_cost_per_retry: 15.00,
   failure_reason_blocklist: [
-    'FRAUD_DETECTED',
-    'CARD_BLOCKED',
-    'ACCOUNT_CLOSED',
-    'STOLEN_CARD',
-    'REGULATORY_BLOCK',
-    'CARD_EXPIRED',
-    'DO_NOT_HONOR',
+    'account_closed',
+    'card_permanently_blocked',
+    'suspected_fraud',
+    'velocity_check_failed',
   ],
 };
 

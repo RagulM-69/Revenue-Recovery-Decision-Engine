@@ -74,11 +74,11 @@ export default function NewAnalysisPage() {
                 <div>
                   <div className="inline-flex items-center gap-1.5 mb-2 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-[11px] font-semibold text-emerald-700">
                     <CheckCircle size={11} />
-                    Available Now
+                    Interactive Preview
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">Try Demo Dataset</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Demo Analysis</h3>
                   <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Run the engine on 3,000 synthetic payment events across 500 customers. Instantly see how the pipeline works end-to-end.
+                    This interactive preview walks through the 6-stage recovery workflow using the latest completed demo dataset. It does not reseed or rerun the backend pipeline.
                   </p>
                 </div>
                 <button

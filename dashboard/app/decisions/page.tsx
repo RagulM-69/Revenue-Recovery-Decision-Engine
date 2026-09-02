@@ -208,9 +208,9 @@ export default function DecisionsPage() {
               </tbody>
             </table>
           </div>
-          {!loading && filtered.length > 200 && (
+          {!loading && filtered.length > 0 && (
             <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500">
-              Showing first 200 of {filtered.length.toLocaleString()} results
+              Showing latest {Math.min(filtered.length, 200)} sampled records for audit · {counts.total.toLocaleString()} total decisions recorded
             </div>
           )}
         </div>
