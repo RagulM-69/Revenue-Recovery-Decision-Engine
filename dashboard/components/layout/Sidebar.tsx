@@ -5,14 +5,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
+  BookOpen,
   Play,
   GitBranch,
   TrendingUp,
   Cpu,
   ShieldAlert,
   History,
-  Circle,
   Zap,
+  ArrowUpRight,
+  Activity,
 } from 'lucide-react';
 import { PipelineRun } from '@/lib/types';
 
@@ -46,56 +48,51 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRun }) => {
     return (
       <Link
         href={item.href}
-        className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-150 ${
+        className={`group flex items-center gap-3.5 px-4 py-3.5 rounded-2xl text-[13px] transition-all duration-200 ${
           isActive
-            ? 'bg-blue-50 text-blue-700'
-            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/70'
+            ? 'bg-white text-[#2E5BFF] font-bold shadow-lg shadow-blue-950/20'
+            : 'text-white/80 hover:text-white hover:bg-white/10 font-medium'
         }`}
       >
-        <span className={`flex items-center justify-center w-7 h-7 rounded-lg shrink-0 transition-colors ${
-          isActive
-            ? 'bg-blue-100 text-blue-600'
-            : 'text-slate-400 group-hover:text-slate-600 group-hover:bg-slate-100'
-        }`}>
-          <Icon size={14} />
+        <span
+          className={`flex items-center justify-center w-5 h-5 transition-colors ${
+            isActive ? 'text-[#2E5BFF]' : 'text-white/80 group-hover:text-white'
+          }`}
+        >
+          <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
         </span>
-        <span className={isActive ? 'font-semibold' : ''}>{item.label}</span>
-        {isActive && (
-          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-        )}
+        <span className="tracking-tight">{item.label}</span>
       </Link>
     );
   };
 
   return (
-    <aside className="w-60 bg-white border-r border-[#E4E9F0] flex flex-col h-screen fixed left-0 top-0 z-30">
-      {/* Brand */}
-      <div className="px-5 py-5 border-b border-[#E4E9F0]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
-            <Zap size={14} className="text-white" />
-          </div>
-          <div>
-            <span className="font-bold text-[13px] text-slate-900 tracking-tight block leading-tight">
-              Revenue Recovery
-            </span>
-            <span className="text-[10px] text-slate-400 font-normal leading-tight">
-              Decision Engine
-            </span>
-          </div>
+    <aside className="w-64 bg-gradient-to-b from-[#2E5BFF] via-[#2A55F5] to-[#1E44D9] flex flex-col h-screen fixed left-0 top-0 z-30 shadow-xl shadow-blue-900/10">
+      {/* Brand Header */}
+      <div className="px-6 pt-7 pb-6 flex items-center gap-3">
+        <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-inner">
+          <Zap size={20} className="text-white fill-white" />
+        </div>
+        <div>
+          <span className="font-extrabold text-[15px] text-white tracking-tight block leading-tight">
+            RevenueEngine
+          </span>
+          <span className="text-[10px] text-white/70 font-semibold tracking-wider uppercase block leading-tight mt-0.5">
+            Razorpay Decisioning
+          </span>
         </div>
       </div>
 
       {/* Primary Navigation */}
-      <nav className="flex-1 overflow-y-auto px-3 pt-5 pb-4 space-y-0.5">
-        <div className="px-3 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+      <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-1.5">
+        <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-white/50 uppercase tracking-widest">
           Platform
         </div>
         {primaryNav.map((item) => (
           <NavItem key={item.href} item={item} />
         ))}
 
-        <div className="px-3 mt-5 mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+        <div className="px-3 pt-5 pb-1 text-[10px] font-bold text-white/50 uppercase tracking-widest">
           Technical
         </div>
         {technicalNav.map((item) => (
@@ -103,29 +100,45 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRun }) => {
         ))}
       </nav>
 
-      {/* Run Status Footer */}
-      <div className="px-4 py-4 border-t border-[#E4E9F0] bg-slate-50/60">
-        <div className="flex items-center gap-2 mb-1.5">
-          <Circle
-            size={6}
-            className={`fill-current ${currentRun ? 'text-emerald-500' : 'text-slate-300'}`}
-          />
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-            {currentRun ? 'Analysis Loaded' : 'No Analysis'}
-          </span>
-        </div>
-        {currentRun ? (
-          <div className="text-[11px] text-slate-400 space-y-0.5">
-            <p className="font-mono truncate text-slate-500">
-              {currentRun.run_id.substring(0, 16)}…
-            </p>
-            <p className="font-medium">
-              {currentRun.total_events_processed.toLocaleString()} events processed
-            </p>
+      {/* Bottom Operational Status Card */}
+      <div className="p-4">
+        <div className="bg-white/10 border border-white/15 rounded-2xl p-4 text-white">
+          <div className="flex items-center justify-between mb-2">
+            <span className="flex items-center gap-2 text-xs font-semibold text-white tracking-tight">
+              <span className="w-2 h-2 rounded-full bg-emerald-400" />
+              Pipeline Active
+            </span>
+            <span className="text-[10px] text-white/60 font-medium">
+              Operational
+            </span>
           </div>
-        ) : (
-          <p className="text-[11px] text-slate-400">Run a new analysis to begin</p>
-        )}
+
+          <p className="text-xs text-white/75 leading-relaxed mb-3 font-normal">
+            {currentRun
+              ? `${currentRun.total_events_processed.toLocaleString()} transactions evaluated.`
+              : 'Payment decision engine operational.'}
+          </p>
+
+          <Link
+            href="/new-analysis"
+            className="flex items-center justify-between w-full px-3.5 py-2 bg-white text-[#2E5BFF] hover:bg-white/95 rounded-xl text-xs font-semibold shadow-2xs transition-all"
+          >
+            <span>Run Analysis</span>
+            <ArrowUpRight size={13} />
+          </Link>
+        </div>
+
+        {/* Subtle Bottom Reference Link */}
+        <div className="pt-2.5 px-1 flex items-center justify-between text-[11px] text-white/70 font-medium">
+          <Link
+            href="/how-it-works"
+            className="hover:text-white flex items-center gap-1.5 transition-colors"
+          >
+            <BookOpen size={13} />
+            <span>How It Works</span>
+          </Link>
+          <span className="text-[10px] text-white/40">Guide &amp; Logic</span>
+        </div>
       </div>
     </aside>
   );

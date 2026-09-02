@@ -1,6 +1,6 @@
-﻿# Revenue Recovery Decision Engine
+# Revenue Recovery Decision Engine
 
-> An AI-assisted decision engine that determines whether to retry, escalate, or abandon a failed payment — built for the Razorpay AI Builder Internship / AI Buildathon 2026.
+> An automated recovery decision engine that classifies failed payments into **RETRY**, **DO_NOTHING**, or **ESCALATE** — combining machine-learning recovery probability with deterministic risk guardrails and unit economics. Built for the Razorpay AI Builder Internship / AI Buildathon 2026.
 
 ---
 
@@ -10,73 +10,81 @@
 
 ---
 
-## Problem
+## The Problem
 
-Every payment platform loses revenue to failed transactions. A naive system retries everything, wasting money and risking fraud flags. A cautious system does nothing, leaving recoverable revenue on the table.
+Every payment platform loses significant revenue to failed transactions. 
+* A **naive system** retries every failure blindly — burning payment gateway fees, violating card network velocity limits, and irritating customers.
+* A **passive system** does nothing — leaving substantial recoverable revenue on the table.
 
-The real problem is a **decision problem under uncertainty**:
+Revenue recovery is fundamentally a **decision problem under uncertainty**:
+> Given a failed payment and its failure context, what is the optimal action — and what is its expected economic return?
 
-> Given a failed payment, what is the optimal action — and what is its expected economic value?
-
-This project builds a system that answers that question, per payment, using a trained ML model and a deterministic policy engine.
+This system solves that problem per transaction by pairing a well-calibrated machine learning probability model with a deterministic policy guardrail engine that enforces unit economics and safety vetoes.
 
 ---
 
 ## One-Line Description
 
-A policy-constrained AI decision engine that classifies failed payments as RETRY, ESCALATE, or DO NOTHING — and demonstrates that knowing when not to act is as valuable as recovering revenue.
+A policy-constrained decision engine that classifies failed payments as **RETRY**, **DO_NOTHING**, or **ESCALATE** — proving that knowing when *not* to act is as valuable as recovering revenue.
 
 ---
 
 ## Technology Stack
 
-| Layer | Technology |
-|---|---|
-| ML Pipeline | Python — pandas, NumPy, scikit-learn, XGBoost |
-| Database | Supabase PostgreSQL |
-| Frontend | Next.js + TypeScript + Tailwind CSS |
-| Deployment | Vercel (frontend) + Supabase (data) |
-| LLM | Optional Gemini API — explanation only |
+| Layer | Technology | Description |
+|---|---|---|
+| **Data & ML Pipeline** | Python (pandas, NumPy, scikit-learn, XGBoost) | Behavioral feature extraction, time-split model training & tournament |
+| **Database** | Supabase PostgreSQL | Normalized transactional tables, decisions, and append-only audit trail |
+| **Frontend** | Next.js 14, React 18, TypeScript, Tailwind CSS | Enterprise fintech console with SVG visualizations |
+| **Icons & Design** | Lucide React, Custom SVG Charts | Restrained, professional SaaS design system |
+| **Deployment** | Vercel (Dashboard) + Supabase (Database) | Production web application and cloud database |
 
 ---
 
 ## High-Level Architecture
 
 ```
-Python ML Pipeline (runs locally)
-        |
-        | supabase-py → bulk upserts
-        v
-  Supabase PostgreSQL
-        |
-        | @supabase/supabase-js
-        v
-  Next.js Dashboard (Vercel)
+                       FAILED PAYMENT EVENT
+                                ↓
+        ┌────────────────────────────────────────────────┐
+        │ Stage 1: Terminal Blocklist Veto               │
+        │ (card_permanently_blocked, account_closed,     │
+        │  suspected_fraud, velocity_check_failed)       │
+        └───────────────────────┬────────────────────────┘
+                    [Pass]      │ [Match]
+                                │ ───────────────→ DO_NOTHING
+                                v
+        ┌────────────────────────────────────────────────┐
+        │ Stage 2: Retry Velocity Ceiling Check          │
+        │ (Attempt count >= 3 limit)                     │
+        └───────────────────────┬────────────────────────┘
+                    [Pass]      │ [Limit Exceeded]
+                                │ ───────────────→ DO_NOTHING
+                                v
+        ┌────────────────────────────────────────────────┐
+        │ Stage 3: Calibrated Recovery Probability       │
+        │ P(recovery) via Logistic Regression (Days 1–20)│
+        └───────────────────────┬────────────────────────┘
+                                │
+                                v
+        ┌────────────────────────────────────────────────┐
+        │ Stage 4: High-Value Escalation Guardrail       │
+        │ (Amount >= ₹1,00,000 AND P(recovery) < 0.85)   │
+        └───────────────────────┬────────────────────────┘
+                    [Pass]      │ [Triggered]
+                                │ ───────────────→ ESCALATE (Human Review)
+                                v
+        ┌────────────────────────────────────────────────┐
+        │ Stage 5: Expected Recovery Value (ERV) Math    │
+        │ ERV = (P(recovery) × Amount) − ₹15 Gateway Fee │
+        └───────────────────────┬────────────────────────┘
+                                │
+               ┌────────────────┴────────────────┐
+               │                                 │
+         [ERV > ₹0.00]                     [ERV <= ₹0.00]
+               ↓                                 ↓
+             RETRY                          DO_NOTHING
 ```
-
-```
-Synthetic Data Generation
-        ↓
-Feature Engineering
-        ↓
-ML Recovery Model  →  P(recovery)
-[Logistic Regression baseline + XGBoost comparison]
-        ↓
-Deterministic Policy Engine
-↓  (guardrails: idempotency · ERV · thresholds · retry limits)
-RETRY / ESCALATE / DO NOTHING
-        ↓
-Recovery Simulator
-        ↓
-Outcome Recording → Audit Log (Supabase)
-        ↓
-Evaluation Metrics → Dashboard (Next.js on Vercel)
-```
-
-An optional Gemini API explanation layer may be added for audit summaries and escalation notes.
-**The LLM does not make financial decisions.**
-
-> LLM may explain. Code decides.
 
 ---
 
@@ -84,94 +92,158 @@ An optional Gemini API explanation layer may be added for audit summaries and es
 
 | Principle | Description |
 |---|---|
-| **Restraint** | DO NOTHING is a valid, correct, and rewarded outcome |
-| **Real ML** | Recovery probability comes from a trained model, not an LLM guess |
-| **Temporal integrity** | Train/test split is time-based (Days 1–20 / 21–30), not random |
-| **Expected-value decisioning** | Policy uses ERV = P(recovery) × amount − cost, not a simple threshold |
-| **Idempotency** | No payment triggers duplicate recovery actions |
-| **Auditability** | Every decision and outcome is logged to an append-only audit trail in Supabase |
-| **Determinism** | Policy engine is pure code — same inputs always produce same outputs |
-| **Calibration** | Model selection is based on Brier score (calibrated probability), not just AUC |
+| **Restraint as Value** | `DO_NOTHING` is a first-class, rewarded decision that prevents fee waste and customer friction. |
+| **Model Calibration over Raw AUC** | Model selection prioritizes the **Brier Score** over ROC-AUC alone to ensure probability estimates are mathematically accurate for ERV calculation. |
+| **Strict Temporal Split** | Models are trained strictly on Days 1–20 and evaluated out-of-sample on Days 21–30, eliminating time-travel data leakage. |
+| **Unit Economics Hurdle** | Retries are approved only when $\text{ERV} = (P(\text{recovery}) \times \text{Amount}) - \text{₹}15.00 > \text{₹}0.00$. |
+| **Deterministic Guardrails** | Business policies and compliance vetoes are enforced in pure code — identical inputs always produce identical decisions. |
+| **Immutable Auditability** | Every decision, probability score, rule check, and financial outcome is stored in an append-only ledger. |
+| **Separation of Concerns** | The ML model estimates likelihood; the policy engine decides action; the financial evaluation measures net value created. |
 
 ---
 
-## Development Status
+## Live Performance & Benchmark Results (Out-of-Sample Days 21–30)
 
-> This project is in the documentation / pre-implementation phase.
-> No production code has been written yet.
+Evaluating 996 unseen failed payment transactions from Days 21–30 against standard operational baselines:
 
-| Component | Status |
-|---|---|
-| Project specification (PROJECT_SPEC.md) | ✅ Complete |
-| Architecture document (ARCHITECTURE.md) | ✅ Complete |
-| Decision log (DECISIONS.md) | ✅ Complete — all decisions locked |
-| Python environment setup | 🔲 Planned |
-| Supabase project + schema | 🔲 Planned |
-| Synthetic data generator | 🔲 Planned |
-| Feature engineering | 🔲 Planned |
-| ML model training (LR + XGBoost) | 🔲 Planned |
-| Policy engine | 🔲 Planned |
-| Recovery simulator | 🔲 Planned |
-| Audit logging | 🔲 Planned |
-| Evaluation metrics | 🔲 Planned |
-| Next.js dashboard | 🔲 Planned |
-| Vercel deployment | 🔲 Planned |
-| Gemini LLM explanation layer | 🔲 Optional — planned for later phase |
+| Metric | Decision Engine (Active) | Naive "Always Retry" | "Do Nothing" Baseline |
+|---|---|---|---|
+| **Net Recovery Value** | **₹45,16,993.19** | ₹43,73,837.77 | ₹0.00 |
+| **Gross Recovered** | ₹45,28,213.19 | ₹45,43,077.77 | ₹0.00 |
+| **Intervention Fees Incurred** | **₹11,220.00** (748 retries) | ₹14,940.00 (996 retries) | ₹0.00 |
+| **Fee Waste Saved** | **₹3,720.00** (248 vetoes) | ₹0.00 | ₹0.00 |
+| **Recovery Precision** | **64.2%** | 51.8% | 0.0% |
+| **Recovery Recall** | **93.0%** (480 / 516 captured) | 100.0% | 0.0% |
+| **Net Value Advantage** | **+₹1,43,155.42** vs Naive | Baseline | -₹45,16,993.19 |
+
+---
+
+## Key Application Features & Upgrades
+
+### 1. Overview Dashboard (`/`)
+* **Unified Financial Performance Deck**: Left-side hero tracking Net Value Created (₹45,16,993.19) and recovery yield progress; right-side 4-metric diagnostic matrix.
+* **Interactive Trajectory Curve**: Scrubbable day-by-day cumulative recovery and daily velocity charts.
+* **Failure Taxonomy Inspector**: Breakdown of declines (soft declines, network timeouts, terminal blocklist) with interactive policy rules.
+
+### 2. Merchant CSV Batch Ingestion Studio (`/new-analysis`)
+* **Live CSV File Ingestion**: Drag-and-drop or upload custom payment failure exports from Razorpay webhooks or aggregator logs.
+* **Schema Verification**: Validates payment IDs, amounts, decline codes, attempt numbers, and payment methods.
+* **1-Click Sample Ingestion**: Pre-loaded 20-transaction test suite covering standard retries, velocity limits, and blocklisted accounts.
+* **Batch Execution & Export**: Processes batches through the client-side decision engine and exports decisioned CSVs with audit traces.
+
+### 3. System Architecture & Simulation Playground (`/how-it-works`)
+* **Top Section — Interactive Decision Studio**:
+  * Clickable 4-scenario switcher (Recoverable Soft Decline, Terminal Blocklist Decline, Velocity Limit Exceeded, High-Value Escalation).
+  * Animated 5-stage visual stepper with live telemetry.
+  * Live ERV Unit Economics calculator sandbox with live Amount and Probability sliders.
+* **Bottom Section — Comprehensive Architecture Reference**:
+  * In-depth documentation of all 5 stages, failure taxonomies, and the 3-tier architectural separation of concerns (ML Classifier vs Policy Engine vs Financial Evaluator).
+
+### 4. Deterministic Policy Guardrails & Sandbox (`/policy`)
+* **Top Section — Interactive Policy Simulator**:
+  * Dynamic sliders for payment amount and model probability with decline reason selector.
+  * Live calculation of gross expectation, retry fees, ERV, and assigned actions.
+* **Bottom Section — Complete Configuration Reference**:
+  * Configured rules table (`max_retry_count: 3`, `high_value_threshold: ₹100,000`, `min_confidence: 0.05`, `min_erv: ₹0.00`).
+  * Terminal failure reason blocklist card (`account_closed`, `card_permanently_blocked`, `suspected_fraud`, `velocity_check_failed`).
+
+### 5. Model Governance & Predictive Calibration (`/model`)
+* **Brier Score Tournament Table**: Head-to-head comparison of Logistic Regression ($0.1563$) vs XGBoost ($0.1565$).
+* **Reliability Curve**: Calibrated curve proving probability integrity.
+* **Confusion Matrix & Feature Weights**: Transparent evaluation metrics for model auditing.
+
+### 6. Operational Decisions Console (`/decisions`)
+* Searchable and filterable table of transactions with decision pills.
+* **Slide-over Audit Drawer**: Complete rule-by-rule evaluation trace and rationale for every transaction.
+
+### 7. Immutable Audit Ledger (`/audit`)
+* Tamper-evident ledger logging every prediction, policy check, and outcome across all transactions.
+* Expandable raw JSON payloads for regulatory traceability.
+
+---
+
+## Project Structure
+
+```
+Revenue-Recovery-Decision-Engine/
+├── config/
+│   ├── model_config.yaml         # Training hyperparams, features, and split dates
+│   └── policy_config.yaml        # Deterministic guardrails, blocklists, and fee thresholds
+├── src/
+│   ├── data/
+│   │   └── generator.py          # Synthetic transaction dataset generator (3,000 events)
+│   ├── features/
+│   │   └── engineer.py           # Behavioral and historical feature engineering
+│   ├── models/
+│   │   ├── classifier.py         # Model training & Brier calibration scoring
+│   │   └── tournament.py         # Logistic Regression vs XGBoost benchmark tournament
+│   ├── policy/
+│   │   └── engine.py             # Deterministic 5-stage policy & ERV decision engine
+│   ├── simulator/
+│   │   └── recovery.py           # Multi-attempt recovery simulator
+│   └── evaluation/
+│       └── metrics.py            # Business impact, ROI calculation, and baseline comparison
+├── dashboard/
+│   ├── app/
+│   │   ├── page.tsx              # Financial Overview dashboard
+│   │   ├── new-analysis/         # Merchant CSV batch ingestion studio
+│   │   ├── how-it-works/         # Architecture guide & interactive simulation studio
+│   │   ├── results/              # Financial return & strategy benchmark comparison
+│   │   ├── model/                # Model tournament & calibration governance
+│   │   ├── policy/               # Policy guardrails & ERV simulator
+│   │   ├── decisions/            # Operational decision ledger & audit drawer
+│   │   └── audit/                # Immutable audit log ledger
+│   ├── components/               # Reusable UI cards, tables, drawers, and charts
+│   └── lib/
+│       ├── data-access.ts        # Supabase client & cached data queries
+│       └── batch-processor.ts    # Client-side CSV batch evaluator
+├── scripts/                      # Pipeline orchestration scripts
+└── sql/                          # Supabase PostgreSQL schema and migration scripts
+```
+
+---
+
+## Local Development Setup
+
+### 1. Backend ML Pipeline (Python)
+```bash
+# Clone the repository
+git clone https://github.com/RagulM-69/Revenue-Recovery-Decision-Engine.git
+cd Revenue-Recovery-Decision-Engine
+
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Run the complete end-to-end pipeline (generates data, trains models, evaluates policy)
+python scripts/run_pipeline.py
+```
+
+### 2. Frontend Dashboard (Next.js)
+```bash
+cd dashboard
+
+# Install dependencies
+npm install
+
+# Set up local environment variables in .env.local:
+# NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+
+# Start the development server
+npm run dev
+```
+
+Open `http://localhost:3000` in your browser.
 
 ---
 
 ## Simulation Disclaimer
 
 **This project operates entirely on synthetic data.**
-
 - No real customer payments are processed.
 - No production Razorpay APIs are called.
 - No real money moves.
-- No real customer data is used.
-
-All transactions, customers, payment events, and outcomes are generated programmatically for demonstration purposes.
-
----
-
-## Evaluation Methodology
-
-The system will be evaluated against two baselines:
-
-| Baseline | Strategy |
-|---|---|
-| Always Retry | Retry every failed payment unconditionally |
-| Always Do Nothing | Never attempt recovery |
-
-A well-performing system should outperform both baselines on **net recovery value** (gross recovery minus intervention costs).
-
-**Temporal split:** Training data covers Days 1–20. Evaluation data covers Days 21–30.
-This prevents temporal data leakage and reflects real-world deployment conditions.
-
-**Key metrics:**
-- Net Recovery Value vs. both baselines
-- Recovery Precision / Recall
-- False Intervention Rate
-- Model Calibration (Brier Score)
-- Escalation Rate
-- Correct Non-Action Value
-
----
-
-## Project Files
-
-| File | Description |
-|---|---|
-| [PROJECT_SPEC.md](PROJECT_SPEC.md) | Full project specification |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Technical architecture and component design |
-| [DECISIONS.md](DECISIONS.md) | Architectural decision log — all decisions locked |
-| [config/policy_config.yaml](config/policy_config.yaml) | Policy guardrail configuration (placeholder) |
-
----
-
-## Deployment Target
-
-**Vercel** (Next.js frontend) + **Supabase** (PostgreSQL database).
-AWS is explicitly excluded from this project.
+- All transactions, customer histories, payment events, and outcomes are simulated for demonstration purposes.
 
 ---
 

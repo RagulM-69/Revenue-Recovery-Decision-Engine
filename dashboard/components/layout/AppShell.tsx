@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
+import { TopHeader } from './TopHeader';
 import { getLatestCompletedRun } from '@/lib/data-access';
 import { PipelineRun } from '@/lib/types';
 
@@ -17,11 +18,14 @@ export const AppShell: React.FC<AppShellProps> = ({ children }) => {
   }, []);
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen bg-[#F1F4F9]">
       <Sidebar currentRun={currentRun} />
-      <main className="flex-1 ml-60 min-h-screen flex flex-col">
-        {children}
-      </main>
+      <div className="flex-1 ml-64 min-h-screen flex flex-col bg-[#F1F4F9]">
+        <TopHeader currentRunId={currentRun?.run_id} />
+        <main className="flex-1 flex flex-col">
+          {children}
+        </main>
+      </div>
     </div>
   );
 };

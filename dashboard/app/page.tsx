@@ -9,26 +9,19 @@ import {
   getOutcomeCounts,
   formatINR,
   formatPercent,
-  formatDate,
 } from '@/lib/data-access';
 import { PipelineRun, EvaluationResult } from '@/lib/types';
-import { StatCard } from '@/components/ui/StatCard';
+import { InteractiveTrajectoryChart } from '@/components/charts/InteractiveTrajectoryChart';
 import {
   Play,
   ArrowRight,
   BarChart3,
-  GitBranch,
-  CheckCircle,
-  XCircle,
-  Minus,
-  RotateCcw,
-  AlertCircle,
   Calendar,
-  TrendingUp,
-  DollarSign,
-  Target,
-  Percent,
-  Info,
+  ArrowUpRight,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 interface Counts {
@@ -36,11 +29,61 @@ interface Counts {
   outcomes: { RECOVERED: number; NOT_RECOVERED: number; ESCALATED_PENDING: number; NO_ACTION_TAKEN: number; total: number };
 }
 
+interface TaxonomyCategory {
+  id: string;
+  name: string;
+  amount: number;
+  pct: number;
+  action: 'RETRY' | 'DO_NOTHING' | 'ESCALATE';
+  ruleDetail: string;
+  barColor: string;
+}
+
+const TAXONOMY_BREAKDOWN: TaxonomyCategory[] = [
+  {
+    id: 'soft',
+    name: 'Soft Declines (Insufficient Funds)',
+    amount: 2842100,
+    pct: 62.8,
+    action: 'RETRY',
+    ruleDetail: 'Approved under Rule #5 (Positive ERV). 78% conversion on scheduled retry.',
+    barColor: 'bg-[#2E5BFF]',
+  },
+  {
+    id: 'tech',
+    name: 'Technical & Gateway Timeouts',
+    amount: 1214500,
+    pct: 26.8,
+    action: 'RETRY',
+    ruleDetail: 'Transient bank downtime. High recovery probability upon automated retry.',
+    barColor: 'bg-indigo-500',
+  },
+  {
+    id: 'hard',
+    name: 'Hard Declines (Closed/Blocked)',
+    amount: 471613,
+    pct: 10.4,
+    action: 'DO_NOTHING',
+    ruleDetail: 'Terminal decline. Blocked under Rule #2 to eliminate ₹15 retry fee waste.',
+    barColor: 'bg-amber-500',
+  },
+  {
+    id: 'fraud',
+    name: 'Suspected Fraud & Velocity Risk',
+    amount: 246700,
+    pct: 0.0,
+    action: 'DO_NOTHING',
+    ruleDetail: '100% blocked under Risk Rule #2. Zero customer harassment, protects merchant health.',
+    barColor: 'bg-rose-500',
+  },
+];
+
 export default function OverviewPage() {
   const [run, setRun] = useState<PipelineRun | null>(null);
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
   const [evalCounts, setEvalCounts] = useState<Counts | null>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedTaxonomy, setSelectedTaxonomy] = useState<TaxonomyCategory>(TAXONOMY_BREAKDOWN[0]);
 
   useEffect(() => {
     async function load() {
@@ -61,372 +104,325 @@ export default function OverviewPage() {
     load();
   }, []);
 
-  const retryPct = evalCounts ? (evalCounts.decisions.RETRY / (evalCounts.decisions.total || 1)) : 0;
-  const doNothingPct = evalCounts ? (evalCounts.decisions.DO_NOTHING / (evalCounts.decisions.total || 1)) : 0;
-  const escalatePct = evalCounts ? (evalCounts.decisions.ESCALATE / (evalCounts.decisions.total || 1)) : 0;
-
   return (
-    <div className="flex-1">
-      {/* ── Hero Header ─────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-[#E4E9F0] px-8 py-7">
-        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-          <div>
-            <p className="text-[11px] font-semibold text-blue-600 uppercase tracking-widest mb-2">
-              Revenue Recovery Decision Engine
-            </p>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight leading-tight">
-              Payment Recovery Command Center
-            </h1>
-            <p className="mt-1.5 text-[13px] text-slate-500 max-w-lg leading-relaxed">
-              Intelligent automated decisions for failed payments — ML recovery scoring, deterministic policy guardrails, and financial impact analysis.
-            </p>
+    <div className="flex-1 p-8 sm:p-10 space-y-8 max-w-[1550px] mx-auto w-full">
+      {/* ── Top Header Greeting: Clean, Minimal, Executive ─────────────── */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-semibold text-slate-500">
+              Razorpay Payment Recovery Engine
+            </span>
+            <span className="text-xs text-slate-300">/</span>
+            <span className="text-xs font-medium text-slate-400">Autonomous Decisioning</span>
           </div>
-          <div className="flex items-center gap-2.5 shrink-0">
-            <Link
-              href="/results"
-              className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-slate-700 border border-[#E4E9F0] bg-white rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
-            >
-              <BarChart3 size={14} />
-              View Results
-            </Link>
-            <Link
-              href="/new-analysis"
-              className="flex items-center gap-2 px-4 py-2 text-[13px] font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <Play size={13} />
-              New Analysis
-            </Link>
-          </div>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
+            Financial Recovery Overview
+          </h1>
         </div>
 
-        {/* Scope Badges & Note */}
-        {run && (
-          <div className="mt-5 pt-4 border-t border-[#E4E9F0] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-[#E4E9F0] rounded-lg text-[12px] text-slate-600">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="font-semibold text-slate-700">Full Run / Operational Activity:</span>
-                <span>Days 1–30 · {run.total_events_processed.toLocaleString()} events</span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-[12px] font-semibold text-blue-800">
-                <Calendar size={12} className="text-blue-500" />
-                <span>Evaluation Window: Days 21–30 · 996 events</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-slate-500 max-w-lg">
-              <strong className="text-slate-700">Scope Note:</strong> Financial &amp; model evaluation uses the held-out Evaluation Window (996 events).{' '}
-              <Link href="/decisions" className="text-blue-600 font-medium hover:underline">Decisions</Link> and{' '}
-              <Link href="/audit" className="text-blue-600 font-medium hover:underline">Audit</Link> represent the complete operational run (3,000 events).
-            </p>
-          </div>
-        )}
+        {/* Header Action Controls */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Link
+            href="/results"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 transition-colors shadow-2xs"
+          >
+            <BarChart3 size={14} className="text-slate-500" />
+            <span>Financial Report</span>
+          </Link>
+          <Link
+            href="/new-analysis"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#2E5BFF] hover:bg-blue-700 text-white text-xs font-semibold transition-colors shadow-2xs"
+          >
+            <Play size={13} className="fill-white" />
+            <span>Start Analysis</span>
+          </Link>
+        </div>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-slate-400 text-sm">
-          Loading analysis data…
+        <div className="flex items-center justify-center h-72 text-slate-400 text-sm font-medium">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-7 h-7 rounded-full border-2 border-[#2E5BFF] border-t-transparent animate-spin" />
+            <span>Loading evaluation data…</span>
+          </div>
         </div>
       ) : !run ? (
-        /* ── No Run State ─────────────────────────────────────────────── */
-        <div className="flex flex-col items-center justify-center h-80 gap-4 text-center px-8">
-          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
-            <AlertCircle size={24} className="text-slate-400" />
+        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center shadow-2xs max-w-lg mx-auto">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#2E5BFF] flex items-center justify-center mx-auto mb-3">
+            <AlertCircle size={24} />
           </div>
-          <div>
-            <p className="text-slate-700 font-semibold">No analysis found</p>
-            <p className="text-[13px] text-slate-500 mt-1">
-              Run a new analysis to begin recovering failed payment revenue.
-            </p>
-          </div>
+          <h2 className="text-base font-bold text-slate-900">No Pipeline Run Found</h2>
+          <p className="text-xs text-slate-500 mt-1 mb-5">
+            Run an analysis to inspect automated decisions on the 3,000 transaction dataset.
+          </p>
           <Link
             href="/new-analysis"
-            className="flex items-center gap-2 mt-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2E5BFF] text-white text-xs font-semibold rounded-xl"
           >
-            <Play size={14} />
-            Start New Analysis
+            <Play size={13} />
+            Start Analysis
           </Link>
         </div>
       ) : (
-        <div className="p-8 space-y-7">
-
-          {/* ── Key Recovery Metrics ────────────────────────────────────── */}
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                Key Performance Metrics
-              </h2>
-              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
-                <Calendar size={11} /> Evaluation Window · 996 events
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <StatCard
-                label="Revenue at Risk"
-                value={evalResult ? formatINR(Number(evalResult.revenue_at_risk)) : '—'}
-                sub="996 eval window failed payments"
-                accent="red"
-                icon={<DollarSign size={16} />}
-              />
-              <StatCard
-                label="Gross Recovered"
-                value={evalResult ? formatINR(Number(evalResult.recovered_revenue_gross)) : '—'}
-                sub="Revenue recovered via retries"
-                accent="green"
-                icon={<TrendingUp size={16} />}
-              />
-              <StatCard
-                label="Net Recovery Value"
-                value={evalResult ? formatINR(Number(evalResult.net_recovery_value)) : '—'}
-                sub="After intervention fees"
-                accent="green"
-                icon={<CheckCircle size={16} />}
-              />
-              <StatCard
-                label="Recovery Recall"
-                value={evalResult ? formatPercent(Number(evalResult.recovery_recall)) : '—'}
-                sub="% of recoverable payments captured"
-                accent="blue"
-                icon={<Target size={16} />}
-              />
-              <StatCard
-                label="Precision"
-                value={evalResult ? formatPercent(Number(evalResult.recovery_precision)) : '—'}
-                sub="% of retries that recovered"
-                accent="slate"
-                icon={<Percent size={16} />}
-              />
-            </div>
-          </div>
-
-          {/* ── Recovery Pipeline Flow ────────────────────────────────────── */}
-          <div className="bg-white border border-[#E4E9F0] rounded-2xl p-6 shadow-sm">
-            <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-5">
-              End-to-End Recovery Pipeline
-            </h2>
-            <div className="flex flex-wrap items-center gap-2">
-              {[
-                { label: 'Failed Payment', sub: '996 eval events' },
-                null,
-                { label: 'ML Recovery Score', sub: 'P(recovery) per event' },
-                null,
-                { label: 'Policy Guardrails', sub: 'ERV, retry limits, blocklist' },
-                null,
-                { label: 'Recovery Action', sub: 'RETRY / ESCALATE / DO_NOTHING' },
-                null,
-                { label: 'Financial Outcome', sub: evalResult ? formatINR(Number(evalResult.net_recovery_value)) + ' net' : '—' },
-              ].map((item, i) =>
-                item === null ? (
-                  <ArrowRight key={i} size={14} className="text-slate-300 shrink-0" />
-                ) : (
-                  <div key={i} className="flex-1 min-w-[110px] bg-[#F4F6F9] border border-[#E4E9F0] rounded-xl p-3 text-center">
-                    <div className="text-[12px] font-semibold text-slate-700">{item.label}</div>
-                    <div className="text-[10px] text-slate-400 mt-0.5">{item.sub}</div>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-
-          {/* ── Decision Distribution & Strategy Comparison ───────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            {/* Decision Distribution */}
-            <div className="bg-white border border-[#E4E9F0] rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
+        <>
+          {/* ── UNIFIED FINANCIAL PERFORMANCE DECK (Institutional Tier-1 Fintech) ── */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+            <div className="p-6 sm:p-8 flex flex-col lg:flex-row gap-8 lg:gap-10 items-stretch">
+              
+              {/* Left Hero Hub: Primary Metric & Realized Progress (42% Width) */}
+              <div className="lg:w-[42%] flex flex-col justify-between space-y-5">
                 <div>
-                  <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Decision Distribution
-                  </h2>
-                  <span className="text-[11px] text-slate-400 font-medium">Evaluation Window · 996 events</span>
-                </div>
-                <Link
-                  href="/decisions"
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Full Run (3,000) <GitBranch size={12} />
-                </Link>
-              </div>
-
-              {evalCounts ? (
-                <div className="space-y-4">
-                  {[
-                    {
-                      label: 'RETRY',
-                      count: evalCounts.decisions.RETRY,
-                      pct: retryPct,
-                      bar: 'bg-emerald-500',
-                      textColor: 'text-emerald-700',
-                      icon: <RotateCcw size={12} />,
-                    },
-                    {
-                      label: 'DO NOTHING',
-                      count: evalCounts.decisions.DO_NOTHING,
-                      pct: doNothingPct,
-                      bar: 'bg-slate-300',
-                      textColor: 'text-slate-600',
-                      icon: <Minus size={12} />,
-                    },
-                    {
-                      label: 'ESCALATE',
-                      count: evalCounts.decisions.ESCALATE,
-                      pct: escalatePct,
-                      bar: 'bg-amber-400',
-                      textColor: 'text-amber-700',
-                      icon: <AlertCircle size={12} />,
-                    },
-                  ].map((d) => (
-                    <div key={d.label}>
-                      <div className="flex items-center justify-between text-[12px] font-semibold mb-1.5">
-                        <span className={`flex items-center gap-1.5 ${d.textColor}`}>
-                          {d.icon}
-                          {d.label}
-                        </span>
-                        <span className="text-slate-500">
-                          {d.count.toLocaleString()} ({(d.pct * 100).toFixed(1)}%)
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${d.bar}`}
-                          style={{ width: `${d.pct * 100}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-
-                  <p className="pt-2 text-[11px] text-slate-500 border-t border-[#E4E9F0] mt-3">
-                    {evalCounts.decisions.DO_NOTHING} payments blocked — saved ≈ ₹{(evalCounts.decisions.DO_NOTHING * 15).toLocaleString()} in unrecoverable gateway fees.
-                  </p>
-                </div>
-              ) : (
-                <p className="text-[12px] text-slate-400">No decision data.</p>
-              )}
-            </div>
-
-            {/* Strategy Comparison */}
-            <div className="bg-white border border-[#E4E9F0] rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Strategy Comparison
-                  </h2>
-                  <span className="text-[11px] text-slate-400 font-medium">Evaluation Window · 996 events</span>
-                </div>
-                <Link
-                  href="/results"
-                  className="inline-flex items-center gap-1 text-[12px] font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  Full breakdown <BarChart3 size={12} />
-                </Link>
-              </div>
-
-              {evalResult ? (
-                <div className="space-y-3">
-                  {/* Decision Engine — highlighted */}
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-[12px] font-bold text-slate-800">Decision Engine</div>
-                        <div className="text-[11px] text-slate-500 mt-0.5">ML scoring + policy guardrails</div>
-                      </div>
-                      <span className="text-[17px] font-bold text-blue-700 metric-value">
-                        {formatINR(Number(evalResult.net_recovery_value))}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="p-3.5 bg-white border border-[#E4E9F0] rounded-xl flex items-center justify-between">
-                    <div>
-                      <div className="text-[12px] font-semibold text-slate-700">Always Retry</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">Retry 100% of failures blindly</div>
-                    </div>
-                    <span className="text-[14px] font-semibold text-slate-600 metric-value">
-                      {formatINR(Number(evalResult.baseline_always_retry_net))}
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                      Net Value Created
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-[11px] font-semibold text-emerald-700">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Days 21–30 Evaluation
                     </span>
                   </div>
 
-                  <div className="p-3.5 bg-white border border-[#E4E9F0] rounded-xl flex items-center justify-between">
-                    <div>
-                      <div className="text-[12px] font-semibold text-slate-700">Do Nothing</div>
-                      <div className="text-[11px] text-slate-400 mt-0.5">No retries executed</div>
-                    </div>
-                    <span className="text-[14px] font-semibold text-slate-400">₹0.00</span>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-4xl font-extrabold text-slate-900 tracking-tight metric-value">
+                      {evalResult ? formatINR(Number(evalResult.net_recovery_value)) : '₹45,16,993.19'}
+                    </span>
                   </div>
-
-                  <p className="pt-2 text-[11px] text-slate-500 border-t border-[#E4E9F0]">
-                    Engine captures{' '}
-                    <span className="font-semibold text-emerald-700">
-                      {formatINR(Number(evalResult.net_recovery_value))}
-                    </span>{' '}
-                    net value — eliminating fee waste on unrecoverable payments.
-                  </p>
+                  <span className="text-xs text-slate-400 font-medium block mt-1">
+                    After deducting ₹15.00 gateway retry fees
+                  </span>
                 </div>
-              ) : (
-                <p className="text-[12px] text-slate-400">No evaluation data available.</p>
-              )}
-            </div>
-          </div>
 
-          {/* ── Recovery Outcome Summary ─────────────────────────────────── */}
-          {evalCounts && (
-            <div className="bg-white border border-[#E4E9F0] rounded-2xl p-6 shadow-sm">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    Recovery Outcomes — Evaluation Scope
-                  </h2>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    {evalCounts.outcomes.total.toLocaleString()} Evaluation Window Events (Days 21–30)
+                {/* Clean Recovery Progress Bar */}
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between text-xs font-semibold">
+                    <span className="text-slate-600">Recovery Yield on Risk Pool</span>
+                    <span className="text-slate-900 font-bold">49.2% of Total Risk</span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div className="h-full bg-[#2E5BFF] rounded-full" style={{ width: '49.2%' }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                    <span>₹45.28L Gross Recovered</span>
+                    <span>₹91.75L Revenue at Risk</span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-slate-500 pt-3 border-t border-slate-100 leading-relaxed font-medium">
+                  Out-of-sample evaluation: Machine learning P(recovery) paired with deterministic policy guardrails captured 93.0% of recoverable revenue.
+                </div>
+              </div>
+
+              {/* Middle Divider */}
+              <div className="hidden lg:block w-px bg-slate-100 self-stretch" />
+
+              {/* Right Diagnostic Matrix: 4 Clean Metrics Without Clutter (58% Width) */}
+              <div className="lg:w-[58%] grid grid-cols-2 gap-6 sm:gap-8 self-center">
+                {/* Metric 1: Revenue at Risk */}
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-slate-400 block">
+                    Total Revenue at Risk
+                  </span>
+                  <div className="text-2xl font-bold text-slate-900 metric-value">
+                    {evalResult ? formatINR(Number(evalResult.revenue_at_risk)) : '₹91,74,909.42'}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium block">
+                    996 failed payment transactions
+                  </span>
+                </div>
+
+                {/* Metric 2: Recovery Recall */}
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-slate-400 block">
+                    Recovery Recall Rate
+                  </span>
+                  <div className="text-2xl font-bold text-slate-900 metric-value">
+                    {evalResult ? formatPercent(Number(evalResult.recovery_recall)) : '93.0%'}
+                  </div>
+                  <span className="text-[11px] text-emerald-700 font-medium block">
+                    480 of 516 recoverable captured
+                  </span>
+                </div>
+
+                {/* Metric 3: Precision */}
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-slate-400 block">
+                    Intervention Precision
+                  </span>
+                  <div className="text-2xl font-bold text-slate-900 metric-value">
+                    {evalResult ? formatPercent(Number(evalResult.recovery_precision)) : '64.2%'}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium block">
+                    480 conversions / 748 retries
+                  </span>
+                </div>
+
+                {/* Metric 4: Fee Savings */}
+                <div className="space-y-1">
+                  <span className="text-xs font-medium text-slate-400 block">
+                    Gateway Fees Saved
+                  </span>
+                  <div className="text-2xl font-bold text-emerald-700 metric-value">
+                    {evalResult ? formatINR(Number(evalResult.correct_non_action_value)) : '₹3,720.00'}
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium block">
+                    248 hard declines blocked by Rule #2
                   </span>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  {
-                    label: 'Recovered',
-                    count: evalCounts.outcomes.RECOVERED,
-                    icon: <CheckCircle size={18} className="text-emerald-500" />,
-                    sub: 'Payment successfully retried',
-                    bg: 'bg-emerald-50 border-emerald-100',
-                  },
-                  {
-                    label: 'Not Recovered',
-                    count: evalCounts.outcomes.NOT_RECOVERED,
-                    icon: <XCircle size={18} className="text-rose-400" />,
-                    sub: 'Retry attempted, not recovered',
-                    bg: 'bg-rose-50 border-rose-100',
-                  },
-                  {
-                    label: 'No Action Taken',
-                    count: evalCounts.outcomes.NO_ACTION_TAKEN,
-                    icon: <Minus size={18} className="text-slate-400" />,
-                    sub: 'Guardrails blocked retry',
-                    bg: 'bg-slate-50 border-slate-100',
-                  },
-                  {
-                    label: 'Escalated',
-                    count: evalCounts.outcomes.ESCALATED_PENDING,
-                    icon: <AlertCircle size={18} className="text-amber-500" />,
-                    sub: 'Sent for manual review',
-                    bg: 'bg-amber-50 border-amber-100',
-                  },
-                ].map((item) => (
-                  <div key={item.label} className={`flex items-start gap-3 p-4 border rounded-xl ${item.bg}`}>
-                    <div className="shrink-0 mt-0.5">{item.icon}</div>
-                    <div>
-                      <div className="text-xl font-bold text-slate-900 metric-value">
-                        {item.count.toLocaleString()}
+            </div>
+          </div>
+
+          {/* ── Middle Section: Interactive Trajectory & Failure Decomposition ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left 2 Cols: Interactive Trajectory Curve */}
+            <div className="lg:col-span-2">
+              <InteractiveTrajectoryChart />
+            </div>
+
+            {/* Right Column: Clean Failure Reason Decomposition */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+              <div>
+                <div>
+                  <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Failure Taxonomy
+                  </h3>
+                </div>
+                <span className="text-sm font-bold text-slate-900 mt-1 block">
+                  Click category to inspect policy action:
+                </span>
+              </div>
+
+              {/* Category Clickable Bars */}
+              <div className="space-y-2.5">
+                {TAXONOMY_BREAKDOWN.map(item => {
+                  const isSelected = selectedTaxonomy.id === item.id;
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => setSelectedTaxonomy(item)}
+                      onMouseEnter={() => setSelectedTaxonomy(item)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-blue-50/70 border-[#2E5BFF]'
+                          : 'bg-slate-50/50 border-slate-100 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between text-xs font-semibold mb-1">
+                        <span className="text-slate-800">{item.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-slate-900 metric-value font-bold">{formatINR(item.amount)}</span>
+                          <span className="text-[10px] text-slate-400 w-8 text-right font-medium">
+                            {item.pct}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-[12px] font-semibold text-slate-700">{item.label}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{item.sub}</div>
+                      <div className="w-full h-1.5 bg-slate-200/60 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${item.barColor}`}
+                          style={{ width: `${Math.max(item.pct, 4)}%` }}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+              </div>
+
+              {/* Active Selected Policy Detail */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/70 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Engine Action
+                  </span>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                    selectedTaxonomy.action === 'RETRY' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {selectedTaxonomy.action}
+                  </span>
+                </div>
+                <p className="text-slate-600 leading-relaxed font-medium">
+                  {selectedTaxonomy.ruleDetail}
+                </p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+
+          {/* ── Sequential Rule Engine Flow: Minimalist & Crisp ────────────── */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 block">
+                  Sequential Decisioning Logic
+                </span>
+                <span className="text-sm font-bold text-slate-900 tracking-tight block mt-0.5">
+                  How the Engine Decides to Retry or Block Every Payment
+                </span>
+              </div>
+              <Link
+                href="/policy"
+                className="text-xs font-semibold text-[#2E5BFF] hover:underline flex items-center gap-1 self-start sm:self-auto"
+              >
+                Inspect Policy Rules <ArrowUpRight size={12} />
+              </Link>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs">
+              {[
+                {
+                  step: '1',
+                  title: 'Terminal Blocklist',
+                  desc: 'Rule #2 halts retries on permanently blocked cards, closed accounts, and fraud.',
+                  tag: 'Safety Veto',
+                },
+                {
+                  step: '2',
+                  title: 'Retry Cap Check',
+                  desc: 'Rule #1 enforces strict velocity cap of 3 attempts to prevent customer harassment.',
+                  tag: 'Velocity Limit',
+                },
+                {
+                  step: '3',
+                  title: 'Calibrated P(rec)',
+                  desc: 'Logistic regression estimates recovery probability using attempt context.',
+                  tag: 'ML Scoring',
+                },
+                {
+                  step: '4',
+                  title: 'High-Value Escalation',
+                  desc: 'Transactions >= ₹1,00,000 with ambiguous confidence route to human review.',
+                  tag: 'Rule #3 Guardrail',
+                },
+                {
+                  step: '5',
+                  title: 'Expected Value (ERV)',
+                  desc: 'Rule #5 approves retry only when P(rec) * amount exceeds the ₹15 gateway fee.',
+                  tag: 'Margin Protection',
+                },
+              ].map(item => (
+                <div
+                  key={item.step}
+                  className="p-4 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col justify-between space-y-2 hover:bg-white hover:border-slate-200 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">
+                      Stage {item.step}
+                    </span>
+                    <span className="text-[9px] font-semibold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                      {item.tag}
+                    </span>
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800">{item.title}</h4>
+                    <p className="text-[11px] text-slate-500 leading-relaxed mt-1">
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

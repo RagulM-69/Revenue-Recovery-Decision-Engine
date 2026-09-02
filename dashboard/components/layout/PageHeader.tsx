@@ -12,11 +12,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   actions,
 }) => {
   return (
-    <div className="px-8 pt-7 pb-5 border-b border-[#E4E9F0] bg-white flex items-start justify-between gap-4">
+    <div className="px-8 pt-7 pb-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
       <div>
-        <h1 className="text-xl font-bold text-slate-900 tracking-tight">{title}</h1>
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">{title}</h1>
         {subtitle && (
-          <p className="mt-1 text-[13px] text-slate-500 font-normal max-w-2xl leading-relaxed">
+          <p className="mt-1 text-[13px] text-slate-500 font-medium max-w-3xl leading-relaxed">
             {subtitle}
           </p>
         )}

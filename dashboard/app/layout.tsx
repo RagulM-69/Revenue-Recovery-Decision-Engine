@@ -11,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'Revenue Recovery Decision Engine',
-  description: 'Intelligent automated recovery decisions for failed payments — ML scoring, policy guardrails, financial impact analysis.',
+  description: 'Automated recovery decision engine for failed payments — calibrated probability scoring, deterministic guardrails, and financial verification.',
 };
 
 export default function RootLayout({
@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="bg-[#F4F6F9] text-slate-900 antialiased min-h-screen">
+      <body className="bg-[#F1F4F9] text-slate-900 antialiased min-h-screen">
         <AppShell>{children}</AppShell>
       </body>
     </html>
