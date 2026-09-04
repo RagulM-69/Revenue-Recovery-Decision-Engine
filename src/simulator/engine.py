@@ -13,10 +13,10 @@ class RecoverySimulator:
     Seeded by latent ground truth for RETRY actions.
     """
 
-    def __init__(self, intervention_cost: float = 15.00, seed: int = None):
+    def __init__(self, intervention_cost: float = 15.00, seed: int = 42):
         self.intervention_cost = intervention_cost
-        if seed is not None:
-            random.seed(seed)
+        self.seed = seed if seed is not None else 42
+        self.rng = random.Random(self.seed)
 
     def simulate_action(
         self,
@@ -34,10 +34,10 @@ class RecoverySimulator:
             # RETRY outcome is probabilistic based on ground truth recoverability
             if ground_truth_is_recoverable:
                 # 90% chance of success when true ground truth is recoverable
-                success = random.random() < 0.90
+                success = self.rng.random() < 0.90
             else:
                 # 5% chance of accidental recovery when ground truth is false
-                success = random.random() < 0.05
+                success = self.rng.random() < 0.05
 
             if success:
                 outcome_type = "RECOVERED"

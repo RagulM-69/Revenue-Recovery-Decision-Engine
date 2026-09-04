@@ -29,9 +29,9 @@ class PolicyEngine:
         g_cfg = p_cfg.get("guardrails", {})
         self.max_retry_count = int(g_cfg.get("max_retry_count", 3))
         self.recovery_window_hours = int(g_cfg.get("recovery_window_hours", 72))
-        self.min_confidence = float(g_cfg.get("min_confidence", 0.35))
+        self.min_confidence = float(g_cfg.get("min_confidence", 0.05))
         self.min_erv = float(g_cfg.get("min_erv", 0.00))
-        self.high_value_threshold = float(g_cfg.get("high_value_threshold", 50000.00))
+        self.high_value_threshold = float(g_cfg.get("high_value_threshold", 100000.00))
         self.low_value_threshold = float(g_cfg.get("low_value_threshold", 100.00))
 
         self.failure_blocklist = set(p_cfg.get("failure_reason_blocklist", []))
@@ -46,11 +46,16 @@ class PolicyEngine:
                     "intervention_cost": 15.00,
                     "guardrails": {
                         "max_retry_count": 3,
-                        "min_confidence": 0.35,
+                        "min_confidence": 0.05,
                         "min_erv": 0.00,
-                        "high_value_threshold": 50000.00
+                        "high_value_threshold": 100000.00
                     },
-                    "failure_reason_blocklist": ["account_closed", "card_permanently_blocked"]
+                    "failure_reason_blocklist": [
+                        "account_closed",
+                        "card_permanently_blocked",
+                        "suspected_fraud",
+                        "velocity_check_failed"
+                    ]
                 }
             }
         with open(path, "r", encoding="utf-8") as f:

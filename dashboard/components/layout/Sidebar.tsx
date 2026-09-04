@@ -17,6 +17,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { PipelineRun } from '@/lib/types';
+import { RevenueLogo } from '@/components/ui/RevenueLogo';
 
 interface SidebarProps {
   currentRun?: PipelineRun | null;
@@ -69,18 +70,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentRun }) => {
   return (
     <aside className="w-64 bg-gradient-to-b from-[#2E5BFF] via-[#2A55F5] to-[#1E44D9] flex flex-col h-screen fixed left-0 top-0 z-30 shadow-xl shadow-blue-900/10">
       {/* Brand Header */}
-      <div className="px-6 pt-7 pb-6 flex items-center gap-3">
-        <div className="w-10 h-10 rounded-2xl bg-white/15 backdrop-blur-md border border-white/20 flex items-center justify-center shadow-inner">
-          <Zap size={20} className="text-white fill-white" />
-        </div>
-        <div>
-          <span className="font-extrabold text-[15px] text-white tracking-tight block leading-tight">
-            RevenueEngine
-          </span>
-          <span className="text-[10px] text-white/70 font-semibold tracking-wider uppercase block leading-tight mt-0.5">
-            Razorpay Decisioning
-          </span>
-        </div>
+      <div className="px-6 pt-7 pb-6">
+        <RevenueLogo variant="sidebar" />
       </div>
 
       {/* Primary Navigation */}

@@ -170,19 +170,22 @@ Revenue-Recovery-Decision-Engine/
 │   ├── model_config.yaml         # Training hyperparams, features, and split dates
 │   └── policy_config.yaml        # Deterministic guardrails, blocklists, and fee thresholds
 ├── src/
-│   ├── data/
+│   ├── data_generator/
 │   │   └── generator.py          # Synthetic transaction dataset generator (3,000 events)
 │   ├── features/
-│   │   └── engineer.py           # Behavioral and historical feature engineering
-│   ├── models/
-│   │   ├── classifier.py         # Model training & Brier calibration scoring
-│   │   └── tournament.py         # Logistic Regression vs XGBoost benchmark tournament
+│   │   └── extractor.py          # Behavioral and historical feature extraction
+│   ├── model/
+│   │   ├── trainer.py            # Model training & Brier calibration tournament
+│   │   └── scorer.py             # Inference probability scorer
 │   ├── policy/
 │   │   └── engine.py             # Deterministic 5-stage policy & ERV decision engine
 │   ├── simulator/
-│   │   └── recovery.py           # Multi-attempt recovery simulator
+│   │   └── engine.py             # Multi-attempt recovery simulator
+│   ├── audit/
+│   │   ├── logger.py             # Immutable audit event builder
+│   │   └── writer.py             # Supabase audit log persistence
 │   └── evaluation/
-│       └── metrics.py            # Business impact, ROI calculation, and baseline comparison
+│       └── evaluator.py          # Business impact, ROI calculation, and baseline comparison
 ├── dashboard/
 │   ├── app/
 │   │   ├── page.tsx              # Financial Overview dashboard
