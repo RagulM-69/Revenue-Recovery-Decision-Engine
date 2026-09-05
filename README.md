@@ -37,7 +37,7 @@ A policy-constrained decision engine that classifies failed payments as **RETRY*
 | **Database** | Supabase PostgreSQL | Normalized transactional tables, decisions, and append-only audit trail |
 | **Frontend** | Next.js 14, React 18, TypeScript, Tailwind CSS | Enterprise fintech console with SVG visualizations |
 | **Icons & Design** | Lucide React, Custom SVG Charts | Restrained, professional SaaS design system |
-| **Deployment** | Vercel (Dashboard) + Supabase (Database) | Production web application and cloud database |
+| **Deployment** | Vercel (Dashboard) + Supabase (Database) | Cloud web dashboard and database |
 
 ---
 
@@ -104,17 +104,18 @@ A policy-constrained decision engine that classifies failed payments as **RETRY*
 
 ## Live Performance & Benchmark Results (Out-of-Sample Days 21–30)
 
-Evaluating 996 unseen failed payment transactions from Days 21–30 against standard operational baselines:
+Evaluating 996 unseen synthetic failed payment transactions from Days 21–30 against standard operational baselines:
 
 | Metric | Decision Engine (Active) | Naive "Always Retry" | "Do Nothing" Baseline |
 |---|---|---|---|
-| **Net Recovery Value** | **₹45,16,993.19** | ₹43,73,837.77 | ₹0.00 |
-| **Gross Recovered** | ₹45,28,213.19 | ₹45,43,077.77 | ₹0.00 |
+| **Net Recovery Value** | **₹45,16,993.19** | ₹45,53,786.79 | ₹0.00 |
+| **Gross Recovered** | ₹45,28,213.19 | ₹45,68,726.79 | ₹0.00 |
 | **Intervention Fees Incurred** | **₹11,220.00** (748 retries) | ₹14,940.00 (996 retries) | ₹0.00 |
 | **Fee Waste Saved** | **₹3,720.00** (248 vetoes) | ₹0.00 | ₹0.00 |
 | **Recovery Precision** | **64.2%** | 51.8% | 0.0% |
 | **Recovery Recall** | **93.0%** (480 / 516 captured) | 100.0% | 0.0% |
-| **Net Value Advantage** | **+₹1,43,155.42** vs Naive | Baseline | -₹45,16,993.19 |
+
+> **Important evaluation note:** In this synthetic simulator, unrecoverable transactions have a 5% stochastic recovery probability. This causes the Always Retry baseline to achieve slightly higher simulated net value than the decision engine. The engine's objective is therefore evaluated on decision quality, recovery recall, intervention precision, and avoidance of inappropriate retries rather than claiming financial superiority over blind retry in this simulation.
 
 ---
 
@@ -242,11 +243,11 @@ Open `http://localhost:3000` in your browser.
 
 ## Simulation Disclaimer
 
-**This project operates entirely on synthetic data.**
-- No real customer payments are processed.
-- No production Razorpay APIs are called.
-- No real money moves.
-- All transactions, customer histories, payment events, and outcomes are simulated for demonstration purposes.
+**This project operates entirely on synthetic data for demonstration purposes.**
+- **Synthetic data only** (All transactions, histories, failure patterns, and outcomes are simulated)
+- **No real customer payments**
+- **No real money movement**
+- **No production Razorpay payment APIs are called**
 
 ---
 
